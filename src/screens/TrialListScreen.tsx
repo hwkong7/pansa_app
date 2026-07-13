@@ -1,0 +1,170 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { listTrials } from '@/api/trials';
+import { Screen } from '@/components/ui';
+import { Icon } from '@/components/icons';
+import { TrialCard } from '@/components/TrialCard';
+import type { Trial } from '@/lib/types';
+import type { AppStackParamList, TabParamList } from '@/navigation/types';
+import { colors, font, radius, spacing } from '@/theme';
+
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<TabParamList, 'Trials'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
+
+const CATEGORIES = ['전체', '연애', '학업', '가족', '친구', '기타'];
+
+export default function TrialListScreen({ navigation }: Props) {
+  const [trials, setTrials] = useState<Trial[]>([]);
+  const [category, setCategory] = useState('전체');
+  const [search, setSearch] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      // 진행중(OPEN) + 대기중(PENDING) 재판 표시
+      const [open, pending] = await Promise.all([
+        listTrials('OPEN'),
+        listTrials('PENDING'),
+      ]);
+      setTrials([...open, ...pending]);
+    } catch (e: any) {
+      setError(e?.message ?? '목록을 불러오지 못했어요');
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+
+  const filtered = useMemo(() => {
+    return trials.filter((t) => {
+      const inCat = category === '전체' || t.title.includes(`[${category}]`);
+      const inSearch =
+        !search || t.title.includes(search) || t.story?.includes(search);
+      return inCat && inSearch;
+    });
+  }, [trials, category, search]);
+
+  return (
+    <Screen>
+      <View style={styles.header}>
+        <Text style={styles.title}>재판소</Text>
+        <View style={styles.searchBox}>
+          <Icon name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="사연검색"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+
+        <FlatList
+          horizontal
+          data={CATEGORIES}
+          keyExtractor={(c) => c}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: spacing.md, paddingVertical: spacing.sm }}
+          renderItem={({ item }) => (
+            <Pressable onPress={() => setCategory(item)}>
+              <Text style={[styles.cat, category === item && styles.catActive]}>
+                {item}
+              </Text>
+            </Pressable>
+          )}
+        />
+      </View>
+
+      <FlatList
+        data={filtered}
+        keyExtractor={(t) => String(t.id)}
+        contentContainerStyle={styles.list}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        renderItem={({ item }) => (
+          <TrialCard
+            trial={item}
+            onPress={() => navigation.navigate('TrialDetail', { id: item.id })}
+          />
+        )}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            {error ?? '아직 진행중인 재판이 없어요.\n오른쪽 아래 + 로 사연을 올려보세요.'}
+          </Text>
+        }
+      />
+
+      <Pressable
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateTrial')}
+      >
+        <Icon name="plus" size={30} color={colors.white} />
+      </Pressable>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  title: { fontSize: font.h1, fontWeight: '800', color: colors.text },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.border,
+    marginTop: spacing.md,
+    paddingBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  searchIcon: { fontSize: 16 },
+  searchInput: { flex: 1, fontSize: font.body, color: colors.text },
+  cat: { fontSize: font.body, color: colors.textMuted },
+  catActive: { color: colors.text, fontWeight: '800' },
+  list: { padding: spacing.lg, paddingBottom: 120 },
+  empty: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    marginTop: spacing.xl,
+    lineHeight: 22,
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    width: 60,
+    height: 60,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  fabText: { color: colors.white, fontSize: 32, lineHeight: 34 },
+});

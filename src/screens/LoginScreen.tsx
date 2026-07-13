@@ -1,0 +1,136 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { signIn } from '@/api/auth';
+import { Button, Screen } from '@/components/ui';
+import { KakaoIcon, NaverIcon } from '@/components/customIcons';
+import type { AuthStackParamList } from '@/navigation/types';
+import { colors, font, radius, spacing } from '@/theme';
+
+type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+
+export default function LoginScreen({ navigation }: Props) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const onLogin = async () => {
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      await signIn(email.trim(), password);
+      // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 메인 진입
+    } catch (e: any) {
+      // 서버 에러 메시지 그대로 노출 (가이드 3-4)
+      setErrorMsg(e?.message ?? '로그인에 실패했어요');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Screen>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+          <Text style={styles.header}>로그인</Text>
+
+          <Text style={styles.label}>아이디 (이메일)</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="email@example.com"
+            placeholderTextColor={colors.textMuted}
+          />
+
+          <Text style={styles.label}>비밀번호</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="••••••••"
+            placeholderTextColor={colors.textMuted}
+          />
+
+          {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
+
+          <Button
+            title="지금 로그인"
+            onPress={onLogin}
+            loading={loading}
+            style={{ marginTop: spacing.lg }}
+          />
+
+          {/* ⚠️ 디자인의 카카오/네이버 소셜 로그인은 백엔드 Provider 설정 후 연동 예정.
+              지금은 이메일/비밀번호 방식만 동작. */}
+          <View style={styles.socialRow}>
+            <View style={[styles.social, { opacity: 0.6 }]}>
+              <KakaoIcon size={32} />
+              <Text style={styles.socialText}>카카오{'\n'}(연동 예정)</Text>
+            </View>
+            <View style={[styles.social, { opacity: 0.6 }]}>
+              <NaverIcon size={32} />
+              <Text style={styles.socialText}>네이버{'\n'}(연동 예정)</Text>
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => navigation.navigate('Signup')}
+            style={styles.signupLink}
+          >
+            <Text style={styles.signupText}>지금 바로 회원가입 ›</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { padding: spacing.lg, paddingTop: spacing.md },
+  header: {
+    fontSize: font.h2,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  label: { color: colors.textMuted, fontSize: font.small, marginTop: spacing.md },
+  input: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.border,
+    paddingVertical: spacing.sm,
+    fontSize: font.body,
+    color: colors.text,
+  },
+  error: { color: colors.danger, marginTop: spacing.md, fontSize: font.small },
+  socialRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
+  social: {
+    flex: 1,
+    height: 96,
+    gap: 6,
+    backgroundColor: colors.cardBg,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  socialText: { color: colors.text, textAlign: 'center', fontSize: font.small },
+  signupLink: { marginTop: spacing.xl, alignItems: 'center' },
+  signupText: { color: colors.text, fontWeight: '700', fontSize: font.body },
+});
