@@ -95,7 +95,9 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
 
         <Text style={styles.story}>{trial.story}</Text>
 
-        {trial.status === 'PENDING' && <PendingView trial={trial} navigation={navigation} />}
+        {trial.status === 'PENDING' && (
+          <PendingView trial={trial} navigation={navigation} />
+        )}
         {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
       </ScrollView>
     </Screen>
@@ -108,7 +110,7 @@ function PendingView({
   navigation,
 }: {
   trial: Trial;
-  navigation: NativeStackScreenProps<AppStackParamList, 'TrialDetail'>['navigation'];
+  navigation: Props['navigation'];
 }) {
   const inviteUrl = trial.invite_token ? buildInviteUrl(trial.invite_token) : null;
   return (
@@ -130,12 +132,13 @@ function PendingView({
               variant="outline"
               style={{ marginTop: spacing.md }}
               onPress={async () => {
-              await Clipboard.setStringAsync(inviteUrl);
-              if (trial.invite_token) {
-                navigation.navigate('ConsentRequest', { token: trial.invite_token });
-            }
-  }}
-/>
+                await Clipboard.setStringAsync(inviteUrl);
+                // 복사 후 피고 동의요청 화면으로 이동
+                if (trial.invite_token) {
+                  navigation.navigate('ConsentRequest', { token: trial.invite_token });
+                }
+              }}
+            />
           </>
         )}
       </Card>

@@ -21,20 +21,14 @@
       "package": "com.pansa.app",
       "adaptiveIcon": {
         "backgroundColor": "#2F6BF6"
-      },
-      "permissions": [
-        "android.permission.RECORD_AUDIO"
-      ]
+      }
     },
     "web": {
       "bundler": "metro"
     },
     "extra": {
       "supabaseUrl": "https://obtnbductdphderzkftf.supabase.co",
-      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr",
-      "eas": {
-        "projectId": "0762a87f-1f6c-4b3f-a689-f273e1b96226"
-      }
+      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr"
     },
     "plugins": [
       [

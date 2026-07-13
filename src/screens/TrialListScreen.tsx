@@ -30,6 +30,7 @@ export default function TrialListScreen({ navigation }: Props) {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'latest' | 'views' | 'deadline'>('latest');
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,13 +61,35 @@ export default function TrialListScreen({ navigation }: Props) {
   };
 
   const filtered = useMemo(() => {
-    return trials.filter((t) => {
+    const list = trials.filter((t) => {
       const inCat = category === '전체' || t.title.includes(`[${category}]`);
       const inSearch =
         !search || t.title.includes(search) || t.story?.includes(search);
       return inCat && inSearch;
     });
-  }, [trials, category, search]);
+    const sorted = [...list];
+    if (sort === 'latest') {
+      sorted.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (sort === 'views') {
+      sorted.sort((a, b) => (b.total_votes ?? 0) - (a.total_votes ?? 0));
+    } else if (sort === 'deadline') {
+      // 마감임박순: closes_at 가까운 순 (없는 건 뒤로)
+      sorted.sort((a, b) => {
+        const at = a.closes_at ? new Date(a.closes_at).getTime() : Infinity;
+        const bt = b.closes_at ? new Date(b.closes_at).getTime() : Infinity;
+        return at - bt;
+      });
+    }
+    return sorted;
+  }, [trials, category, search, sort]);
+
+  const SORTS: { key: 'latest' | 'views' | 'deadline'; label: string }[] = [
+    { key: 'latest', label: '최신순' },
+    { key: 'views', label: '조회수순' },
+    { key: 'deadline', label: '마감임박순' },
+  ];
 
   return (
     <Screen>
@@ -97,6 +120,16 @@ export default function TrialListScreen({ navigation }: Props) {
             </Pressable>
           )}
         />
+
+        <View style={styles.sortRow}>
+          {SORTS.map((o) => (
+            <Pressable key={o.key} onPress={() => setSort(o.key)}>
+              <Text style={[styles.sortItem, sort === o.key && styles.sortItemActive]}>
+                {o.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <FlatList
@@ -142,6 +175,9 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: font.body, color: colors.text },
   cat: { fontSize: font.body, color: colors.textMuted },
+  sortRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs, marginBottom: spacing.sm },
+  sortItem: { fontSize: font.small, color: colors.textMuted },
+  sortItemActive: { color: colors.primary, fontWeight: '800' },
   catActive: { color: colors.text, fontWeight: '800' },
   list: { padding: spacing.lg, paddingBottom: 120 },
   empty: {

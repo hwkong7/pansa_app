@@ -81,7 +81,9 @@ export default function CreateTrialScreen({ navigation }: Props) {
               text: '링크 복사',
               onPress: async () => {
                 await Clipboard.setStringAsync(inviteUrl);
-                navigation.navigate('TrialDetail', { id: trialId });
+                // 복사 후 피고 동의요청 화면(ConsentRequest)으로 이동
+                if (token) navigation.navigate('ConsentRequest', { token });
+                else navigation.navigate('TrialDetail', { id: trialId });
               },
             },
             {
