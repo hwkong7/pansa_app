@@ -79,11 +79,11 @@ export default function MyPageScreen({ navigation }: Props) {
             bg={colors.white}
             style={styles.menu}
             onPress={() => {
-              if (m === '리워드 교환' || m === 'P-COIN 지갑') {
-                navigation.navigate('RewardShop');
-              } else {
-                Alert.alert(m, '준비 중이에요.');
-              }
+              if (m === '내 사연 내역') navigation.navigate('Activity', { mode: 'myTrials' });
+              else if (m === '배팅 내역') navigation.navigate('Activity', { mode: 'myBets' });
+              else if (m === 'P-COIN 지갑') navigation.navigate('Activity', { mode: 'wallet' });
+              else if (m === '리워드 교환') navigation.navigate('RewardShop');
+              else Alert.alert(m, '준비 중이에요.');
             }}
           >
             <Text style={styles.menuText}>{m}</Text>

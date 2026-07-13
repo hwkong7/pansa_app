@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import {
   DEMO_MODE,
   demoCreateTrial,
+  demoRespondToTrial,
   demoState,
 } from '@/lib/demo';
 import type { Trial, TrialStatus } from '@/lib/types';
@@ -47,7 +48,10 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
 
 // ── 쓰기: 초대 수락/거절 (rpc respond_to_trial) ─────────────────────
 export async function respondToTrial(token: string, accept: boolean) {
-  if (DEMO_MODE) return;
+  if (DEMO_MODE) {
+    demoRespondToTrial(token, accept);
+    return;
+  }
   const { error } = await supabase.rpc('respond_to_trial', {
     p_token: token,
     p_accept: accept,
@@ -138,4 +142,20 @@ export function subscribeTrial(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ── 읽기: 내가 작성한 재판 (마이페이지) ───────────────────────────
+export async function listMyTrials(userId: string): Promise<Trial[]> {
+  if (DEMO_MODE) {
+    const { demoMyTrials } = await import('@/lib/demo');
+    return demoMyTrials();
+  }
+  // 실제: plaintiff_id 컬럼이 있으면 그것으로 필터 (백엔드 스키마 확인 필요)
+  const { data, error } = await supabase
+    .from('trials')
+    .select('*')
+    .eq('plaintiff_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Trial[];
 }

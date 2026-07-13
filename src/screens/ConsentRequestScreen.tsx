@@ -30,10 +30,11 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
       await respondToTrial(token, accept);
       if (accept && trial) {
         navigation.replace('TrialDetail', { id: trial.id });
+      } else if (trial) {
+        // 거절 → 재판 취소 결과 화면 (웹/폰 모두 확실히 동작)
+        navigation.replace('TrialCanceled', { trialId: trial.id });
       } else {
-        Alert.alert('완료', '재판을 거절했어요.', [
-          { text: '확인', onPress: () => navigation.popToTop() },
-        ]);
+        navigation.popToTop();
       }
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '처리에 실패했어요'); // 서버 메시지 그대로

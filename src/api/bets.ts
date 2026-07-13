@@ -36,3 +36,21 @@ export async function placeBet(
   });
   if (error) throw error;
 }
+
+// ── 읽기: 내 배팅 내역 (마이페이지) ───────────────────────────────
+export interface MyBetRow {
+  trial: import('@/lib/types').Trial;
+  choice: Choice;
+  amount: number;
+  payout: number;
+  settled: boolean;
+}
+
+export async function listMyBets(): Promise<MyBetRow[]> {
+  if (DEMO_MODE) {
+    const { demoMyBets } = await import('@/lib/demo');
+    return demoMyBets();
+  }
+  // 실제: 코인 원장의 '베팅' 항목 + 재판 조회로 구성 (백엔드와 스키마 확인)
+  return [];
+}

@@ -12,6 +12,7 @@ import {
   VerdictFailedScreen,
 } from '@/screens/ResultScreens';
 import RewardShopScreen from '@/screens/RewardShopScreen';
+import ActivityScreen from '@/screens/ActivityScreen';
 import SignupScreen from '@/screens/SignupScreen';
 import TrialDetailScreen from '@/screens/TrialDetailScreen';
 import VerdictScreen from '@/screens/VerdictScreen';
@@ -53,6 +54,7 @@ function AppFlow() {
       <AppStack.Screen name="VerdictFailed" component={VerdictFailedScreen} />
       <AppStack.Screen name="Verdict" component={VerdictScreen} />
       <AppStack.Screen name="RewardShop" component={RewardShopScreen} />
+      <AppStack.Screen name="Activity" component={ActivityScreen} />
     </AppStack.Navigator>
   );
 }

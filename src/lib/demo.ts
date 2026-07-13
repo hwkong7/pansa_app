@@ -11,6 +11,9 @@ export const DEMO_MODE = true;
 
 export const DEMO_USER = { id: 'demo-user', nickname: '익명의판사' };
 
+// 데모: 내가 작성한 재판(마이페이지 '내 사연 내역'용)
+export const DEMO_MY_TRIAL_IDS = [12345, 12347];
+
 const now = Date.now();
 const inDays = (d: number) => new Date(now + d * 86_400_000).toISOString();
 const agoDays = (d: number) => new Date(now - d * 86_400_000).toISOString();
@@ -174,4 +177,34 @@ export function demoCreateTrial(input: {
   });
   demoState.coin = Math.max(0, demoState.coin - input.stake);
   return id;
+}
+
+
+// 데모: 내가 작성한 재판 목록
+export function demoMyTrials(): Trial[] {
+  return demoState.trials.filter((t) => DEMO_MY_TRIAL_IDS.includes(t.id));
+}
+
+// 데모: 내 배팅 내역 (재판별)
+export function demoMyBets(): { trial: Trial; choice: Choice; amount: number; payout: number; settled: boolean }[] {
+  return Object.entries(demoState.myBets)
+    .map(([trialId, b]) => {
+      const trial = demoState.trials.find((t) => t.id === Number(trialId));
+      if (!trial) return null;
+      return { trial, choice: b.choice, amount: b.amount, payout: b.payout, settled: trial.status === 'SETTLED' };
+    })
+    .filter(Boolean) as any;
+}
+
+// 데모: 피고 수락/거절 → 상태 변경
+//  수락 → OPEN(투표 시작, closes_at 24시간 뒤) / 거절 → REJECTED
+export function demoRespondToTrial(token: string, accept: boolean) {
+  const t = demoState.trials.find((x) => x.invite_token === token);
+  if (!t) return;
+  if (accept) {
+    t.status = 'OPEN';
+    t.closes_at = inDays(1);
+  } else {
+    t.status = 'REJECTED';
+  }
 }
