@@ -7,7 +7,7 @@ import type { Choice, CoinLedgerEntry, Profile, Trial } from './types';
  *
  * 발표 전 실제 연동으로 넘어갈 때 이 값만 false 로 바꾸면 됩니다.
  */
-export const DEMO_MODE = false;
+export const DEMO_MODE = true;
 
 export const DEMO_USER = { id: 'demo-user', nickname: '익명의판사' };
 
