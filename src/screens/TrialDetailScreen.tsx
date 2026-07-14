@@ -349,32 +349,6 @@ function CommentsSection({ trialId }: { trialId: number }) {
   );
 }
 
-function ChoiceButton({
-  label,
-  active,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[
-        styles.choiceBtn,
-        active && styles.choiceBtnActive,
-        disabled && { opacity: 0.4 },
-      ]}
-    >
-      <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { padding: spacing.lg, paddingBottom: 60 },
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
