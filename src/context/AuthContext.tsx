@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { supabase } from '@/lib/supabase';
-import { DEMO_MODE, DEMO_USER } from '@/lib/demo';
+import { DEMO_MODE, DEMO_USER, demoAuth } from '@/lib/demo';
 
 interface AuthContextValue {
   session: Session | null;
@@ -24,29 +24,31 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [demoSignedIn, setDemoSignedIn] = useState(false);
 
   useEffect(() => {
     if (DEMO_MODE) {
+      // 데모: 로그인 화면을 그대로 보여주되, demoAuth 상태를 구독한다.
+      setDemoSignedIn(demoAuth.isSignedIn());
       setLoading(false);
-      return; // 데모 모드에서는 실제 세션 구독을 하지 않음
+      const unsub = demoAuth.subscribe(() => setDemoSignedIn(demoAuth.isSignedIn()));
+      return unsub;
     }
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
     });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {
     if (DEMO_MODE) {
-      // 로그인 없이 화면을 보기 위한 가짜 세션 (실제 로그인 아님)
+      if (!demoSignedIn) return { session: null, user: null, loading: false };
       const demoSession = {
         user: {
           id: DEMO_USER.id,
@@ -56,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { session: demoSession, user: demoSession.user, loading: false };
     }
     return { session, user: session?.user ?? null, loading };
-  }, [session, loading]);
+  }, [session, loading, demoSignedIn]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

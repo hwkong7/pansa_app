@@ -99,6 +99,7 @@ export default function CreateTrialScreen({ navigation }: Props) {
         optionB: '피고 승',
         stake: stakeNum,
         votingDays,
+        photoUri,
       });
 
       // 생성 후 초대 토큰 조회 → 피고에게 공유할 링크 생성 (가이드 3-2 ②)

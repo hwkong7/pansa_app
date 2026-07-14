@@ -19,7 +19,7 @@ export type AppStackParamList = {
   TrialDetail: { id: number };
   ConsentRequest: { token: string };
   TrialCanceled: { trialId: number };
-  VerdictFailed: { trialId: number };
+  VerdictFailed: { trialId: number; totalVotes?: number };
   Verdict: { id: number };
   RewardShop: undefined;
   Activity: { mode: 'myTrials' | 'myBets' | 'wallet' };

@@ -1,15 +1,35 @@
-import type { Choice, CoinLedgerEntry, Profile, Trial } from './types';
+import { MIN_VOTES_TO_SETTLE, type Choice, type CoinLedgerEntry, type Profile, type Trial } from './types';
 
 /**
  * ⚠️ 데모 모드
- *  true  → 로그인/백엔드 없이 목업 데이터로 모든 화면을 볼 수 있음 (발표 시연용)
- *  false → 실제 Supabase 백엔드에 연결 (로그인 필요)
- *
- * 발표 전 실제 연동으로 넘어갈 때 이 값만 false 로 바꾸면 됩니다.
+ *  true  → 백엔드 없이 목업 데이터로 동작 (발표 시연용). 로그인은 형식만 검증하고 통과.
+ *  false → 실제 Supabase 백엔드에 연결.
  */
+export const DEMO_MODE = true;
 export const DEMO_MODE = true;
 
 export const DEMO_USER = { id: 'demo-user', nickname: '익명의판사' };
+
+/* 데모 로그인 (백엔드 없이 통과) */
+let _signedIn = false;
+const _authListeners = new Set<() => void>();
+export const demoAuth = {
+  isSignedIn: () => _signedIn,
+  signIn: () => {
+    _signedIn = true;
+    _authListeners.forEach((l) => l());
+  },
+  signOut: () => {
+    _signedIn = false;
+    _authListeners.forEach((l) => l());
+  },
+  subscribe: (cb: () => void) => {
+    _authListeners.add(cb);
+    return () => {
+      _authListeners.delete(cb);
+    };
+  },
+};
 
 // 데모: 내가 작성한 재판(마이페이지 '내 사연 내역'용)
 export const DEMO_MY_TRIAL_IDS = [12345, 12347];
@@ -18,28 +38,32 @@ const now = Date.now();
 const inDays = (d: number) => new Date(now + d * 86_400_000).toISOString();
 const agoDays = (d: number) => new Date(now - d * 86_400_000).toISOString();
 
-// 재판별 "내 베팅/배당" (정산 화면용)
 type MyBet = { choice: Choice; amount: number; payout: number };
+export type DemoComment = { id: number; nickname: string; text: string; created_at: string };
 
-// 데모 상태 (베팅하면 코인/득표가 실제로 갱신되도록 mutable)
 export const demoState: {
   coin: number;
   nickname: string;
   trials: Trial[];
   myBets: Record<number, MyBet>;
+  comments: Record<number, DemoComment[]>;
 } = {
   coin: 1240,
   nickname: DEMO_USER.nickname,
   myBets: {
-    // 판결 화면 예시: 원고(A)에 500 걸었으나 피고(B) 승 → 배당 0
     12300: { choice: 'A', amount: 500, payout: 0 },
+  },
+  comments: {
+    12345: [
+      { id: 1, nickname: '익명의배심원1', text: '생일 두 번은 좀... 원고 손 들어줍니다', created_at: agoDays(0) },
+      { id: 2, nickname: '익명의배심원2', text: '바빴을 수도 있죠. 대화가 먼저인 듯', created_at: agoDays(0) },
+    ],
   },
   trials: [
     {
       id: 12345,
       title: '[연애] 3년 사귄 남친이 제 생일을 두 번 연속 까먹었어요',
-      story:
-        '3년 사귄 남친이 제 생일을 두 번 연속 까먹었어요. 이거 헤어질 사유 될까요...',
+      story: '3년 사귄 남친이 제 생일을 두 번 연속 까먹었어요. 이거 헤어질 사유 될까요...',
       option_a: '원고 승',
       option_b: '피고 승',
       stake: 500,
@@ -52,13 +76,13 @@ export const demoState: {
       votes_b: 3,
       total_votes: 7,
       total_bet: 3500,
+      photo_uri: null,
       view_count: 128,
     },
     {
       id: 12300,
       title: '[연애] 소개팅 후 3일 만에 연락 끊은 상대, 잠수 이별인가요?',
-      story:
-        '소개팅에서 분위기 좋았는데 3일 만에 연락이 뚝 끊겼어요. 제가 뭘 잘못한 걸까요, 아니면 그쪽이 무례한 걸까요?',
+      story: '소개팅에서 분위기 좋았는데 3일 만에 연락이 뚝 끊겼어요. 제가 뭘 잘못한 걸까요, 아니면 그쪽이 무례한 걸까요?',
       option_a: '원고 승',
       option_b: '피고 승',
       stake: 500,
@@ -71,6 +95,7 @@ export const demoState: {
       votes_b: 8,
       total_votes: 12,
       total_bet: 6000,
+      photo_uri: null,
       view_count: 340,
     },
     {
@@ -85,10 +110,11 @@ export const demoState: {
       winner: null,
       created_at: agoDays(1),
       closes_at: inDays(2),
-      votes_a: 6,
-      votes_b: 5,
-      total_votes: 11,
+      votes_a: 5,
+      votes_b: 4,
+      total_votes: 9,
       total_bet: 4200,
+      photo_uri: null,
       view_count: 96,
     },
     {
@@ -102,11 +128,12 @@ export const demoState: {
       invite_token: 'demo-token',
       winner: null,
       created_at: agoDays(0),
-      closes_at: null,
+      closes_at: inDays(1),
       votes_a: 0,
       votes_b: 0,
       total_votes: 0,
       total_bet: 0,
+      photo_uri: null,
       view_count: 3,
     },
   ],
@@ -149,16 +176,20 @@ export function demoLedger(): CoinLedgerEntry[] {
   return entries;
 }
 
-// 데모: 베팅 처리 (코인 차감 + 득표 반영 + 내 베팅 기록)
+// 데모: 베팅 처리 (투표 상한 체크 포함)
 export function demoPlaceBet(trialId: number, choice: Choice, amount: number) {
-  demoState.coin = Math.max(0, demoState.coin - amount);
   const t = demoState.trials.find((x) => x.id === trialId);
   if (t) {
+    const total = (t.votes_a ?? 0) + (t.votes_b ?? 0);
+    if (total >= MIN_VOTES_TO_SETTLE) {
+      throw new Error('이미 투표 정원이 찼어요. 재판을 마감해주세요.');
+    }
     if (choice === 'A') t.votes_a = (t.votes_a ?? 0) + 1;
     else t.votes_b = (t.votes_b ?? 0) + 1;
     t.total_votes = (t.total_votes ?? 0) + 1;
     t.total_bet = (t.total_bet ?? 0) + amount;
   }
+  demoState.coin = Math.max(0, demoState.coin - amount);
   demoState.myBets[trialId] = { choice, amount, payout: 0 };
 }
 
@@ -168,11 +199,72 @@ export function demoIncrementView(trialId: number) {
   if (t) t.view_count = (t.view_count ?? 0) + 1;
 }
 
-// 데모: 재판 생성
+// 데모: 재판 종료 (과반 판정) → 'A' | 'B' | 'FAILED'
+export function demoEndTrial(trialId: number): Choice | 'FAILED' {
+  const t = demoState.trials.find((x) => x.id === trialId);
+  if (!t) return 'FAILED';
+  const a = t.votes_a ?? 0;
+  const b = t.votes_b ?? 0;
+  const total = a + b;
+
+  if (total < MIN_VOTES_TO_SETTLE || a === b) {
+    t.status = 'SETTLED';
+    t.winner = null;
+    t.deleted = true; // 홈/목록에서 삭제 처리
+    return 'FAILED';
+  }
+
+  const winner: Choice = a > b ? 'A' : 'B';
+  t.status = 'SETTLED';
+  t.winner = winner;
+
+  const my = demoState.myBets[trialId];
+  if (my) {
+    if (my.choice === winner) {
+      const payout = my.amount + Math.round(my.amount * 0.9);
+      my.payout = payout;
+      demoState.coin += payout;
+    } else {
+      my.payout = 0;
+    }
+  }
+  return winner;
+}
+
+// 데모: 피고 수락/거절
+export function demoRespondToTrial(token: string, accept: boolean) {
+  const t = demoState.trials.find((x) => x.invite_token === token);
+  if (!t) return;
+  if (accept) {
+    t.status = 'OPEN';
+    t.closes_at = inDays(1);
+  } else {
+    t.status = 'REJECTED';
+  }
+}
+
+// 데모: 댓글
+export function demoGetComments(trialId: number): DemoComment[] {
+  return demoState.comments[trialId] ?? [];
+}
+export function demoAddComment(trialId: number, text: string): DemoComment {
+  const list = demoState.comments[trialId] ?? [];
+  const c: DemoComment = {
+    id: (list[list.length - 1]?.id ?? 0) + 1,
+    nickname: DEMO_USER.nickname,
+    text,
+    created_at: new Date().toISOString(),
+  };
+  demoState.comments[trialId] = [...list, c];
+  return c;
+}
+
+// 데모: 재판 생성 (사진 포함)
 export function demoCreateTrial(input: {
   title: string;
   story: string;
   stake: number;
+  photoUri?: string | null;
   votingDays?: number;
 }): number {
   const id = 12000 + Math.floor(Math.random() * 900) + 100;
@@ -187,11 +279,12 @@ export function demoCreateTrial(input: {
     invite_token: `demo-token-${id}`,
     winner: null,
     created_at: new Date().toISOString(),
-    closes_at: null,
+    closes_at: inDays(1),
     votes_a: 0,
     votes_b: 0,
     total_votes: 0,
     total_bet: 0,
+    photo_uri: input.photoUri ?? null,
     view_count: 0,
     voting_days: input.votingDays ?? null,
   });

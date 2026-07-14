@@ -34,6 +34,8 @@ export default function RewardShopScreen({ navigation }: Props) {
   const [view, setView] = useState<View3>('shop');
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<number[]>([]);
+  const [sort, setSort] = useState<'high' | 'low'>('high');
+  const [sortOpen, setSortOpen] = useState(false);
 
   const refreshCoin = useCallback(() => {
     if (user) getMyCoin(user.id).then(setCoin).catch(() => {});
@@ -66,8 +68,9 @@ export default function RewardShopScreen({ navigation }: Props) {
   const list = useMemo(() => {
     if (view === 'wish') return REWARDS.filter((r) => wishlist.includes(r.id));
     if (view === 'history') return purchases.map((id) => REWARDS.find((r) => r.id === id)!).filter(Boolean);
-    return tab === '전체' ? REWARDS : REWARDS.filter((r) => r.cat === tab);
-  }, [view, tab, wishlist, purchases]);
+    const base = tab === '전체' ? REWARDS : REWARDS.filter((r) => r.cat === tab);
+    return [...base].sort((a, b) => (sort === 'high' ? b.cost - a.cost : a.cost - b.cost));
+  }, [view, tab, wishlist, purchases, sort]);
 
   const title = view === 'wish' ? '찜한 상품' : view === 'history' ? '구매내역' : '리워드샵';
   const emptyText =
@@ -126,12 +129,49 @@ export default function RewardShopScreen({ navigation }: Props) {
               </Pressable>
             ))}
           </View>
+
           <View style={styles.sortRow}>
             <Text style={styles.count}>전체 {list.length}</Text>
-            <Pressable style={styles.sortBtn}>
-              <Text style={styles.sortText}>인기순</Text>
-              <Icon name="chevron-down" size={16} color={colors.textMuted} />
-            </Pressable>
+
+            <View style={styles.sortWrap}>
+              <Pressable
+                style={styles.sortBtn}
+                onPress={() => setSortOpen((open) => !open)}
+              >
+                <Text style={styles.sortText}>
+                  {sort === 'high' ? '가격 높은순' : '가격 낮은순'}
+                </Text>
+                <Icon name="chevron-down" size={16} color={colors.textMuted} />
+              </Pressable>
+
+              {sortOpen && (
+                <View style={styles.sortMenu}>
+                  <Pressable
+                    style={[styles.sortMenuItem, sort === 'high' && styles.sortMenuItemActive]}
+                    onPress={() => {
+                      setSort('high');
+                      setSortOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.sortMenuText, sort === 'high' && styles.sortMenuTextActive]}>
+                      가격 높은순
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.sortMenuItem, sort === 'low' && styles.sortMenuItemActive]}
+                    onPress={() => {
+                      setSort('low');
+                      setSortOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.sortMenuText, sort === 'low' && styles.sortMenuTextActive]}>
+                      가격 낮은순
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
           </View>
         </>
       )}
@@ -159,6 +199,7 @@ export default function RewardShopScreen({ navigation }: Props) {
                     <Icon name="heart" size={20} color={wished ? colors.danger : colors.textMuted} />
                   </Pressable>
                   <Text style={[styles.rewardCost, !affordable && { color: colors.textMuted }]}>
+
                     {item.cost.toLocaleString()}p
                   </Text>
                 </>
@@ -217,6 +258,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   count: { color: colors.textMuted, fontSize: font.small },
+  sortWrap: { position: 'relative' },
   sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   sortText: { color: colors.textMuted, fontSize: font.small },
   list: { padding: spacing.lg, paddingTop: spacing.md },
@@ -237,4 +279,25 @@ const styles = StyleSheet.create({
   rewardCost: { fontSize: font.body, fontWeight: '800', color: colors.text },
   done: { fontSize: font.small, fontWeight: '700', color: colors.success },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
+  sortMenu: {
+    position: 'absolute',
+    top: 28,
+    right: 0,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    minWidth: 120,
+    zIndex: 10,
+    overflow: 'hidden',
+  },
+  sortMenuItem: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sortMenuItemActive: {
+    backgroundColor: colors.primary + '10',
+  },
+  sortMenuText: { color: colors.text, fontSize: font.small },
+  sortMenuTextActive: { color: colors.primary, fontWeight: '700' },
 });

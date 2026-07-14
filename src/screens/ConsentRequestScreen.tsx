@@ -35,6 +35,7 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
         navigation.replace('TrialCanceled', { trialId: trial.id });
       } else {
         navigation.popToTop();
+        navigation.popToTop();
       }
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '처리에 실패했어요'); // 서버 메시지 그대로
