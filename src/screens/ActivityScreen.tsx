@@ -118,7 +118,12 @@ export default function ActivityScreen({ navigation, route }: Props) {
                     {item.amount.toLocaleString()}P
                   </Text>
                 </View>
-                <Text style={[styles.result, { color: resultColor }]}>{resultText}</Text>
+                <View style={styles.betResultCol}>
+                  <Text style={[styles.settleBadge, { color: item.settled ? colors.success : colors.textMuted }]}>
+                    {item.settled ? '정산 완료' : '정산 대기'}
+                  </Text>
+                  <Text style={[styles.result, { color: resultColor }]}>{resultText}</Text>
+                </View>
               </Card>
             );
           }}
@@ -206,6 +211,8 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: font.body, fontWeight: '700', color: colors.text },
   rowMeta: { fontSize: font.small, color: colors.textMuted, marginTop: 2 },
   badge: { fontSize: font.small, fontWeight: '700' },
+  betResultCol: { alignItems: 'flex-end' },
+  settleBadge: { fontSize: font.tiny, fontWeight: '700', marginBottom: 2 },
   result: { fontSize: font.body, fontWeight: '800' },
   sectionLabel: { color: colors.textMuted, fontSize: font.small, marginBottom: spacing.sm },
   ledgerRow: {

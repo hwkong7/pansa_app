@@ -43,7 +43,8 @@ export type IconName =
   | 'chevron-down'
   | 'settings'
   | 'heart'
-  | 'check';
+  | 'check'
+  | 'close';
 
 // 방식 B로 전환할 아이콘 이름 (업로드된 Figma SVG 사용)
 const USE_CUSTOM: IconName[] = [
@@ -96,6 +97,7 @@ const A_MAP: Record<IconName, Vec> = {
   settings: { set: 'feather', glyph: 'settings' },
   heart: { set: 'feather', glyph: 'heart' },
   check: { set: 'feather', glyph: 'check' },
+  close: { set: 'feather', glyph: 'x' },
 };
 
 export function Icon({

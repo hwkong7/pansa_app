@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { placeBet } from '@/api/bets';
-import { buildInviteUrl, getTrial, subscribeTrial } from '@/api/trials';
+import { buildInviteUrl, getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
 import { BetSheet } from '@/components/BetSheet';
 import { Button, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -51,6 +51,11 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [id, load]);
+
+  // 조회수 +1: 화면 진입 시 1회만
+  useEffect(() => {
+    incrementTrialView(id).catch(() => {});
+  }, [id]);
 
   // SETTLED/REJECTED 전환 시 결과 화면으로 이동
   useEffect(() => {

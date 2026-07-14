@@ -7,6 +7,7 @@ import ConsentRequestScreen from '@/screens/ConsentRequestScreen';
 import CreateTrialScreen from '@/screens/CreateTrialScreen';
 import LoginScreen from '@/screens/LoginScreen';
 import OnboardingScreen from '@/screens/OnboardingScreen';
+import ProfileSettingsScreen from '@/screens/ProfileSettingsScreen';
 import {
   TrialCanceledScreen,
   VerdictFailedScreen,
@@ -55,6 +56,7 @@ function AppFlow() {
       <AppStack.Screen name="Verdict" component={VerdictScreen} />
       <AppStack.Screen name="RewardShop" component={RewardShopScreen} />
       <AppStack.Screen name="Activity" component={ActivityScreen} />
+      <AppStack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
     </AppStack.Navigator>
   );
 }

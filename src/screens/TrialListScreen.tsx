@@ -31,6 +31,7 @@ export default function TrialListScreen({ navigation }: Props) {
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'latest' | 'views' | 'deadline'>('latest');
+  const [sortOpen, setSortOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,7 +74,7 @@ export default function TrialListScreen({ navigation }: Props) {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     } else if (sort === 'views') {
-      sorted.sort((a, b) => (b.total_votes ?? 0) - (a.total_votes ?? 0));
+      sorted.sort((a, b) => (b.view_count ?? 0) - (a.view_count ?? 0));
     } else if (sort === 'deadline') {
       // 마감임박순: closes_at 가까운 순 (없는 건 뒤로)
       sorted.sort((a, b) => {
@@ -90,6 +91,7 @@ export default function TrialListScreen({ navigation }: Props) {
     { key: 'views', label: '조회수순' },
     { key: 'deadline', label: '마감임박순' },
   ];
+  const currentSortLabel = SORTS.find((o) => o.key === sort)?.label ?? '';
 
   return (
     <Screen>
@@ -122,14 +124,36 @@ export default function TrialListScreen({ navigation }: Props) {
         />
 
         <View style={styles.sortRow}>
-          {SORTS.map((o) => (
-            <Pressable key={o.key} onPress={() => setSort(o.key)}>
-              <Text style={[styles.sortItem, sort === o.key && styles.sortItemActive]}>
-                {o.label}
-              </Text>
-            </Pressable>
-          ))}
+          <Pressable onPress={() => setSortOpen((v) => !v)} style={styles.sortTrigger}>
+            <Text style={styles.sortTriggerText}>{currentSortLabel}</Text>
+            <Icon
+              name="chevron-down"
+              size={14}
+              color={colors.textMuted}
+              style={sortOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
+            />
+          </Pressable>
         </View>
+
+        {sortOpen && (
+          <View style={styles.sortMenu}>
+            {SORTS.map((o) => (
+              <Pressable
+                key={o.key}
+                style={styles.sortMenuItem}
+                onPress={() => {
+                  setSort(o.key);
+                  setSortOpen(false);
+                }}
+              >
+                <Text style={[styles.sortMenuItemText, sort === o.key && styles.sortMenuItemTextActive]}>
+                  {o.label}
+                </Text>
+                {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -175,9 +199,34 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: font.body, color: colors.text },
   cat: { fontSize: font.body, color: colors.textMuted },
-  sortRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs, marginBottom: spacing.sm },
-  sortItem: { fontSize: font.small, color: colors.textMuted },
-  sortItemActive: { color: colors.primary, fontWeight: '800' },
+  sortRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.xs },
+  sortTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  sortTriggerText: { fontSize: font.small, color: colors.textMuted, fontWeight: '700' },
+  sortMenu: {
+    alignSelf: 'flex-end',
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+  },
+  sortMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  sortMenuItemText: { fontSize: font.small, color: colors.textMuted },
+  sortMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
   catActive: { color: colors.text, fontWeight: '800' },
   list: { padding: spacing.lg, paddingBottom: 120 },
   empty: {

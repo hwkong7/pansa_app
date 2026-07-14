@@ -48,7 +48,7 @@ export function TrialCard({
       </Text>
 
       <Text style={styles.meta}>
-        조회 {(trial.total_votes ?? 0) > 0 ? trial.total_votes : '-'} · 상태 {trial.status}
+        조회 {(trial.view_count ?? 0) > 0 ? trial.view_count : '-'} · 상태 {trial.status}
       </Text>
     </Card>
   );

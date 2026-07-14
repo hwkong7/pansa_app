@@ -4,6 +4,7 @@ import {
   DEMO_PROFILE,
   demoLedger,
   demoState,
+  demoUpdateNickname,
 } from '@/lib/demo';
 import type { CoinLedgerEntry, Profile } from '@/lib/types';
 
@@ -21,6 +22,20 @@ export async function getMyProfile(userId: string): Promise<Profile> {
     .single();
   if (error) throw error;
   return data as Profile;
+}
+
+export async function updateMyNickname(userId: string, nickname: string): Promise<void> {
+  if (DEMO_MODE) {
+    demoUpdateNickname(nickname);
+    return;
+  }
+  // NOTE: 실제 백엔드 쓰기 규칙(가이드 3-3)상 RPC 사용이 원칙이나, 닉네임 변경용
+  // RPC가 아직 확정되지 않아 우선 profiles 테이블 직접 update로 처리한다.
+  const { error } = await supabase
+    .from('profiles')
+    .update({ nickname })
+    .eq('id', userId);
+  if (error) throw error;
 }
 
 export async function getMyCoin(userId: string): Promise<number> {
