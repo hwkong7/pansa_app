@@ -35,6 +35,8 @@ export interface Trial {
   votes_b?: number | null; // 피고 득표수(사람 수)
   total_votes?: number | null;
   total_bet?: number | null; // 총 베팅액
+  view_count?: number | null; // 조회수 (상세화면 진입 시 +1)
+  voting_days?: number | null; // 작성 시 선택한 투표 기간(일). 피고 수락 시점부터 적용
 }
 
 // 코인 원장 (내역)
@@ -59,6 +61,13 @@ export const MIN_VOTES_TO_SETTLE = 10;
 // 베팅 규칙 (가이드 4장 코인 규칙)
 export const BET_MIN = 1;
 export const BET_MAX = 500;
+
+// 사연 작성 시 판돈 최소값
+export const TRIAL_MIN_STAKE = 50;
+
+// 투표 마감일 프리셋(일) 및 기본값
+export const VOTING_DAYS_OPTIONS = [1, 3, 7] as const;
+export const DEFAULT_VOTING_DAYS = 3;
 
 // 앱 수수료 (가이드: 승자 90% / 앱 10%)
 export const APP_FEE_RATE = 0.1;

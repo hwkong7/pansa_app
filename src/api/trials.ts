@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import {
   DEMO_MODE,
   demoCreateTrial,
+  demoIncrementView,
   demoRespondToTrial,
   demoState,
 } from '@/lib/demo';
@@ -24,6 +25,7 @@ export interface CreateTrialInput {
   optionA: string;
   optionB: string;
   stake: number;
+  votingDays?: number;
 }
 
 // ── 쓰기: 재판 생성 (rpc create_trial) ─────────────────────────────
@@ -33,8 +35,11 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
       title: input.title,
       story: input.story,
       stake: input.stake,
+      votingDays: input.votingDays,
     });
   }
+  // NOTE: votingDays는 실제 create_trial RPC 시그니처가 확정되면 p_voting_days
+  // 파라미터로 함께 전달해야 한다. 현재는 백엔드 스키마 미확인으로 보류.
   const { data: trialId, error } = await supabase.rpc('create_trial', {
     p_title: input.title,
     p_story: input.story,
@@ -93,6 +98,28 @@ export async function listTrials(status?: TrialStatus): Promise<Trial[]> {
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Trial[];
+}
+
+// ── 쓰기: 조회수 +1 (상세화면 진입 시) ──────────────────────────────
+export async function incrementTrialView(id: number): Promise<void> {
+  if (DEMO_MODE) {
+    demoIncrementView(id);
+    return;
+  }
+  // NOTE: 원자적 증가를 위한 RPC(increment_trial_view 등)가 아직 확정되지 않아,
+  // 우선 읽고-더하기로 처리한다. 백엔드 확정되면 RPC 호출로 교체 필요.
+  const { data, error } = await supabase
+    .from('trials')
+    .select('view_count')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  const next = ((data?.view_count as number) ?? 0) + 1;
+  const { error: updateError } = await supabase
+    .from('trials')
+    .update({ view_count: next })
+    .eq('id', id);
+  if (updateError) throw updateError;
 }
 
 // ── 읽기: 재판 단건 ───────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { listTrials } from '@/api/trials';
+import { listMyTrials, listTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
@@ -17,10 +17,19 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
+type BestPeriod = 'day' | 'week' | 'month';
+const BEST_PERIODS: { key: BestPeriod; label: string; ms: number }[] = [
+  { key: 'day', label: '일간', ms: 86_400_000 },
+  { key: 'week', label: '주간', ms: 7 * 86_400_000 },
+  { key: 'month', label: '월간', ms: 30 * 86_400_000 },
+];
+
 export default function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [openTrials, setOpenTrials] = useState<Trial[]>([]);
   const [settled, setSettled] = useState<Trial[]>([]);
+  const [myPending, setMyPending] = useState<Trial[]>([]);
+  const [bestPeriod, setBestPeriod] = useState<BestPeriod>('day');
   const attendance = useAttendance();
 
   const load = useCallback(async () => {
@@ -31,10 +40,14 @@ export default function HomeScreen({ navigation }: Props) {
       ]);
       setOpenTrials(open);
       setSettled(done);
+      if (user) {
+        const mine = await listMyTrials(user.id);
+        setMyPending(mine.filter((t) => t.status === 'PENDING'));
+      }
     } catch {
       // 홈 위젯은 조용히 무시
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,7 +57,31 @@ export default function HomeScreen({ navigation }: Props) {
 
   const nickname = (user?.user_metadata?.nickname as string) ?? '익명의판사';
   const hottest = openTrials[0];
-  const best = settled.find((t) => t.winner) ?? settled[0];
+
+  // 베스트 판결: 선택 기간 내 정산된 재판 중 참여 투표수 → 베팅액 순으로 랭킹
+  const best = useMemo(() => {
+    const windowMs = BEST_PERIODS.find((p) => p.key === bestPeriod)!.ms;
+    const inWindow = settled.filter((t) => {
+      const settledAt = t.closes_at ? new Date(t.closes_at).getTime() : null;
+      return settledAt != null && Date.now() - settledAt <= windowMs;
+    });
+    const pool = inWindow.length > 0 ? inWindow : settled;
+    return [...pool].sort((a, b) => {
+      const votes = (b.total_votes ?? 0) - (a.total_votes ?? 0);
+      if (votes !== 0) return votes;
+      return (b.total_bet ?? 0) - (a.total_bet ?? 0);
+    })[0];
+  }, [settled, bestPeriod]);
+
+  // 피고인 동의 대기: 내가 쓴 사연 중 가장 오래 기다린 PENDING 건, 24시간 응답 창 기준 게이지
+  const CONSENT_WINDOW_MS = 24 * 3_600_000;
+  const waitingTrial = myPending[0];
+  const waitingProgress = waitingTrial
+    ? Math.min((Date.now() - new Date(waitingTrial.created_at).getTime()) / CONSENT_WINDOW_MS, 1)
+    : 0;
+  const waitingHoursLeft = waitingTrial
+    ? Math.max(0, Math.ceil((CONSENT_WINDOW_MS - (Date.now() - new Date(waitingTrial.created_at).getTime())) / 3_600_000))
+    : 0;
 
   const onCheckIn = async () => {
     const r = await attendance.checkIn();
@@ -100,6 +137,23 @@ export default function HomeScreen({ navigation }: Props) {
           </Pressable>
         </Card>
 
+        {waitingTrial && (
+          <Card style={styles.widget}>
+            <Text style={styles.widgetLabel}>피고인 동의 대기중</Text>
+            <Text style={styles.widgetTitle} numberOfLines={1}>
+              {stripCategory(waitingTrial.title)}
+            </Text>
+            <View style={styles.consentTrack}>
+              <View style={[styles.consentFill, { width: `${waitingProgress * 100}%` }]} />
+            </View>
+            <Text style={styles.widgetMeta}>
+              {waitingHoursLeft > 0
+                ? `응답 대기 · ${waitingHoursLeft}시간 남음`
+                : '응답 대기 · 곧 자동 취소돼요'}
+            </Text>
+          </Card>
+        )}
+
         {hottest && (
           <Card
             style={styles.widget}
@@ -109,26 +163,38 @@ export default function HomeScreen({ navigation }: Props) {
             <Text style={styles.widgetTitle} numberOfLines={1}>
               {stripCategory(hottest.title)}
             </Text>
-            <Text style={styles.widgetMeta}>진행중 · 상태 {hottest.status}</Text>
+            <Text style={styles.widgetMeta}>
+              진행중 · 조회 {hottest.view_count ?? 0}
+            </Text>
           </Card>
         )}
 
         {best && (
-          <Card
-            style={styles.widget}
-            onPress={() => navigation.navigate('Verdict', { id: best.id })}
-          >
-            <Text style={styles.widgetLabel}>베스트 판결</Text>
-            <Text style={styles.widgetTitle} numberOfLines={1}>
-              {stripCategory(best.title)}
-            </Text>
-            <Text style={[styles.widgetMeta, { color: colors.primary }]}>
-              {best.winner === 'A'
-                ? '원고 승 확정'
-                : best.winner === 'B'
-                ? '피고 승 확정'
-                : '무승부'}
-            </Text>
+          <Card style={styles.widget}>
+            <View style={styles.bestHeaderRow}>
+              <Text style={styles.widgetLabel}>베스트 판결</Text>
+              <View style={styles.bestTabs}>
+                {BEST_PERIODS.map((p) => (
+                  <Pressable key={p.key} onPress={() => setBestPeriod(p.key)}>
+                    <Text style={[styles.bestTab, bestPeriod === p.key && styles.bestTabActive]}>
+                      {p.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            <Pressable onPress={() => navigation.navigate('Verdict', { id: best.id })}>
+              <Text style={styles.widgetTitle} numberOfLines={1}>
+                {stripCategory(best.title)}
+              </Text>
+              <Text style={[styles.widgetMeta, { color: colors.primary }]}>
+                {best.winner === 'A' ? '원고 승 확정' : best.winner === 'B' ? '피고 승 확정' : '무승부'}
+              </Text>
+              <Text style={styles.widgetMeta}>
+                참여 {best.total_votes ?? 0} · 베팅 {(best.total_bet ?? 0).toLocaleString()}P · 조회{' '}
+                {best.view_count ?? 0}
+              </Text>
+            </Pressable>
           </Card>
         )}
 
@@ -185,6 +251,18 @@ const styles = StyleSheet.create({
   widgetLabel: { color: colors.textMuted, fontSize: font.small, marginBottom: 4 },
   widgetTitle: { color: colors.text, fontSize: font.h3, fontWeight: '700' },
   widgetMeta: { color: colors.textMuted, fontSize: font.small, marginTop: 4 },
+  consentTrack: {
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  consentFill: { height: 6, backgroundColor: colors.primary, borderRadius: 3 },
+  bestHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bestTabs: { flexDirection: 'row', gap: spacing.sm },
+  bestTab: { fontSize: font.tiny, color: colors.textMuted, fontWeight: '700' },
+  bestTabActive: { color: colors.primary },
   linkRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

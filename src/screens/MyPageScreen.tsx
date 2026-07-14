@@ -17,7 +17,7 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-const MENU = ['내 사연 내역', '베팅 내역', 'P-COIN 지갑', '리워드 교환'];
+const MENU = ['내 사연 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
 
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
@@ -52,16 +52,7 @@ export default function MyPageScreen({ navigation }: Props) {
             <Text style={styles.nickname}>{nickname}</Text>
             <Text style={styles.profileMeta}>CASE 참여 · 승률 —</Text>
           </View>
-          <Pressable
-            onPress={() =>
-              Alert.alert('설정', undefined, [
-                { text: '알림 설정', onPress: () => setNotif((v) => !v) },
-                { text: '로그아웃', style: 'destructive', onPress: () => signOut() },
-                { text: '닫기', style: 'cancel' },
-              ])
-            }
-            hitSlop={10}
-          >
+          <Pressable onPress={() => navigation.navigate('ProfileSettings')} hitSlop={10}>
             <Icon name="settings" size={22} color={colors.textMuted} />
           </Pressable>
         </View>

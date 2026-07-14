@@ -24,10 +24,12 @@ type MyBet = { choice: Choice; amount: number; payout: number };
 // 데모 상태 (베팅하면 코인/득표가 실제로 갱신되도록 mutable)
 export const demoState: {
   coin: number;
+  nickname: string;
   trials: Trial[];
   myBets: Record<number, MyBet>;
 } = {
   coin: 1240,
+  nickname: DEMO_USER.nickname,
   myBets: {
     // 판결 화면 예시: 원고(A)에 500 걸었으나 피고(B) 승 → 배당 0
     12300: { choice: 'A', amount: 500, payout: 0 },
@@ -50,6 +52,7 @@ export const demoState: {
       votes_b: 3,
       total_votes: 7,
       total_bet: 3500,
+      view_count: 128,
     },
     {
       id: 12300,
@@ -68,6 +71,7 @@ export const demoState: {
       votes_b: 8,
       total_votes: 12,
       total_bet: 6000,
+      view_count: 340,
     },
     {
       id: 12346,
@@ -85,6 +89,7 @@ export const demoState: {
       votes_b: 5,
       total_votes: 11,
       total_bet: 4200,
+      view_count: 96,
     },
     {
       id: 12347,
@@ -102,15 +107,21 @@ export const demoState: {
       votes_b: 0,
       total_votes: 0,
       total_bet: 0,
+      view_count: 3,
     },
   ],
 };
 
 export const DEMO_PROFILE = (): Profile => ({
   id: DEMO_USER.id,
-  nickname: DEMO_USER.nickname,
+  nickname: demoState.nickname,
   coin: demoState.coin,
 });
+
+// 데모: 닉네임 변경 (프로필 설정 화면)
+export function demoUpdateNickname(nickname: string) {
+  demoState.nickname = nickname;
+}
 
 export function demoLedger(): CoinLedgerEntry[] {
   const entries: CoinLedgerEntry[] = [];
@@ -151,11 +162,18 @@ export function demoPlaceBet(trialId: number, choice: Choice, amount: number) {
   demoState.myBets[trialId] = { choice, amount, payout: 0 };
 }
 
+// 데모: 조회수 +1 (상세화면 진입 시)
+export function demoIncrementView(trialId: number) {
+  const t = demoState.trials.find((x) => x.id === trialId);
+  if (t) t.view_count = (t.view_count ?? 0) + 1;
+}
+
 // 데모: 재판 생성
 export function demoCreateTrial(input: {
   title: string;
   story: string;
   stake: number;
+  votingDays?: number;
 }): number {
   const id = 12000 + Math.floor(Math.random() * 900) + 100;
   demoState.trials.unshift({
@@ -174,6 +192,8 @@ export function demoCreateTrial(input: {
     votes_b: 0,
     total_votes: 0,
     total_bet: 0,
+    view_count: 0,
+    voting_days: input.votingDays ?? null,
   });
   demoState.coin = Math.max(0, demoState.coin - input.stake);
   return id;
@@ -203,7 +223,7 @@ export function demoRespondToTrial(token: string, accept: boolean) {
   if (!t) return;
   if (accept) {
     t.status = 'OPEN';
-    t.closes_at = inDays(1);
+    t.closes_at = inDays(t.voting_days ?? 1);
   } else {
     t.status = 'REJECTED';
   }
