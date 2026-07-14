@@ -34,6 +34,7 @@ export default function RewardShopScreen({ navigation }: Props) {
   const [view, setView] = useState<View3>('shop');
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [purchases, setPurchases] = useState<number[]>([]);
+  const [sort, setSort] = useState<'high' | 'low'>('high');
 
   const refreshCoin = useCallback(() => {
     if (user) getMyCoin(user.id).then(setCoin).catch(() => {});
@@ -66,8 +67,9 @@ export default function RewardShopScreen({ navigation }: Props) {
   const list = useMemo(() => {
     if (view === 'wish') return REWARDS.filter((r) => wishlist.includes(r.id));
     if (view === 'history') return purchases.map((id) => REWARDS.find((r) => r.id === id)!).filter(Boolean);
-    return tab === '전체' ? REWARDS : REWARDS.filter((r) => r.cat === tab);
-  }, [view, tab, wishlist, purchases]);
+    const base = tab === '전체' ? REWARDS : REWARDS.filter((r) => r.cat === tab);
+    return [...base].sort((a, b) => (sort === 'high' ? b.cost - a.cost : a.cost - b.cost));
+  }, [view, tab, wishlist, purchases, sort]);
 
   const title = view === 'wish' ? '찜한 상품' : view === 'history' ? '구매내역' : '리워드샵';
   const emptyText =
@@ -128,8 +130,13 @@ export default function RewardShopScreen({ navigation }: Props) {
           </View>
           <View style={styles.sortRow}>
             <Text style={styles.count}>전체 {list.length}</Text>
-            <Pressable style={styles.sortBtn}>
-              <Text style={styles.sortText}>인기순</Text>
+            <Pressable
+              style={styles.sortBtn}
+              onPress={() => setSort((s) => (s === 'high' ? 'low' : 'high'))}
+            >
+              <Text style={styles.sortText}>
+                {sort === 'high' ? '가격 높은순' : '가격 낮은순'}
+              </Text>
               <Icon name="chevron-down" size={16} color={colors.textMuted} />
             </Pressable>
           </View>

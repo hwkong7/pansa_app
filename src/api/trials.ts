@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase';
 import {
   DEMO_MODE,
   demoCreateTrial,
+  demoEndTrial,
+  demoRespondToTrial,
   demoState,
 } from '@/lib/demo';
 import type { Trial, TrialStatus } from '@/lib/types';
@@ -23,6 +25,7 @@ export interface CreateTrialInput {
   optionA: string;
   optionB: string;
   stake: number;
+  photoUri?: string | null;
 }
 
 // ── 쓰기: 재판 생성 (rpc create_trial) ─────────────────────────────
@@ -32,6 +35,7 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
       title: input.title,
       story: input.story,
       stake: input.stake,
+      photoUri: input.photoUri ?? null,
     });
   }
   const { data: trialId, error } = await supabase.rpc('create_trial', {
@@ -47,7 +51,10 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
 
 // ── 쓰기: 초대 수락/거절 (rpc respond_to_trial) ─────────────────────
 export async function respondToTrial(token: string, accept: boolean) {
-  if (DEMO_MODE) return;
+  if (DEMO_MODE) {
+    demoRespondToTrial(token, accept);
+    return;
+  }
   const { error } = await supabase.rpc('respond_to_trial', {
     p_token: token,
     p_accept: accept,
@@ -76,9 +83,9 @@ export function buildInviteUrl(inviteToken: string): string {
 // ── 읽기: 재판 목록 (상태 필터) ────────────────────────────────────
 export async function listTrials(status?: TrialStatus): Promise<Trial[]> {
   if (DEMO_MODE) {
-    const list = status
-      ? demoState.trials.filter((t) => t.status === status)
-      : demoState.trials;
+    const list = demoState.trials.filter(
+      (t) => !t.deleted && (!status || t.status === status)
+    );
     return [...list];
   }
   let query = supabase
@@ -138,4 +145,12 @@ export function subscribeTrial(
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+
+// ── 데모 전용: 재판 강제 종료 (과반 판정) ─────────────────────────
+// 실제 백엔드에서는 서버가 마감 시간에 자동 정산하므로 이 함수는 데모 시연용이다.
+export async function endTrialDemo(trialId: number): Promise<'A' | 'B' | 'FAILED'> {
+  if (DEMO_MODE) return demoEndTrial(trialId);
+  throw new Error('재판 종료는 서버가 자동 처리합니다');
 }

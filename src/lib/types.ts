@@ -35,6 +35,8 @@ export interface Trial {
   votes_b?: number | null; // 피고 득표수(사람 수)
   total_votes?: number | null;
   total_bet?: number | null; // 총 베팅액
+  photo_uri?: string | null; // 첨부 사진 (데모: 로컬 uri)
+  deleted?: boolean; // 성립 실패로 삭제 처리된 재판 (목록에서 제외)
 }
 
 // 코인 원장 (내역)
