@@ -103,7 +103,7 @@ export const demoState: {
       story: '결혼 후 매 명절 시댁 큰집만 들르고 친정은 늘 뒷전이에요...',
       option_a: '원고 승',
       option_b: '피고 승',
-      stake: 300,
+      stake: 500,
       status: 'OPEN',
       invite_token: null,
       winner: null,

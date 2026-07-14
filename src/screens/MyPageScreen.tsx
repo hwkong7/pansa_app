@@ -4,7 +4,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { signOut } from '@/api/auth';
+import { listMyBets } from '@/api/bets';
 import { getMyProfile } from '@/api/profile';
+import { listMyTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
@@ -19,20 +21,29 @@ type Props = CompositeScreenProps<
 
 const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
 
+// 데모: 승률은 정산 이력 집계가 아직 없어 더미 값으로 표시
+const DUMMY_WIN_RATE = 68;
+
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notif, setNotif] = useState(true);
+  const [myTrialsCount, setMyTrialsCount] = useState(0);
+  const [myBetsCount, setMyBetsCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
-      if (user) getMyProfile(user.id).then(setProfile).catch(() => {});
+      if (!user) return;
+      getMyProfile(user.id).then(setProfile).catch(() => {});
+      listMyTrials(user.id).then((t) => setMyTrialsCount(t.length)).catch(() => {});
+      listMyBets().then((b) => setMyBetsCount(b.length)).catch(() => {});
     }, [user])
   );
 
   const nickname =
     profile?.nickname ?? (user?.user_metadata?.nickname as string) ?? '익명의판사';
   const coin = profile?.coin ?? 0;
+  const caseCount = myTrialsCount + myBetsCount;
 
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
@@ -50,7 +61,9 @@ export default function MyPageScreen({ navigation }: Props) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.nickname}>{nickname}</Text>
-            <Text style={styles.profileMeta}>CASE 참여 · 승률 —</Text>
+            <Text style={styles.profileMeta}>
+              CASE {caseCount} 참여 · 승률 {DUMMY_WIN_RATE}%
+            </Text>
           </View>
           <Pressable onPress={() => navigation.navigate('ProfileSettings')} hitSlop={10}>
             <Icon name="settings" size={22} color={colors.textMuted} />
@@ -58,9 +71,9 @@ export default function MyPageScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.statsRow}>
-          <Stat value="—" label="내 사연" />
+          <Stat value={`${myTrialsCount}`} label="내 사연" />
           <Stat value={`${coin.toLocaleString()}p`} label="보유코인" highlight />
-          <Stat value="—" label="베팅 참여" />
+          <Stat value={`${myBetsCount}`} label="베팅 참여" />
         </View>
 
         <Text style={styles.sectionLabel}>활동 내역</Text>

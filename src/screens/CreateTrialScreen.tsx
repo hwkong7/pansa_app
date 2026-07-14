@@ -25,7 +25,7 @@ import {
   TRIAL_MIN_STAKE,
   VOTING_DAYS_OPTIONS,
 } from '@/lib/types';
-import { font, radius, spacing } from '@/theme';
+import { colors, font, radius, spacing } from '@/theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateTrial'>;
 
@@ -42,7 +42,7 @@ const FG = {
   white: '#FFFFFF',
 } as const;
 
-const CATEGORIES = ['연애', '학업', '가족', '기타'];
+const CATEGORIES = ['연애', '학업', '가족', '친구', '기타'];
 const MAX_LEN = 500;
 
 export default function CreateTrialScreen({ navigation }: Props) {
@@ -328,9 +328,8 @@ const styles = StyleSheet.create({
   },
   storyCard: {
     minHeight: 140,
-    borderRadius: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: FG.border,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   storyInput: {
     fontSize: font.body,
@@ -385,8 +384,8 @@ const styles = StyleSheet.create({
 
   rowCard: {
     marginTop: spacing.md,
-    borderWidth: 1.2,
-    borderColor: FG.text,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   rowBetween: {
     flexDirection: 'row',

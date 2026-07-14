@@ -5,6 +5,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -36,6 +38,7 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   const [trial, setTrial] = useState<Trial | null>(null);
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   const load = useCallback(async () => {
     try {
@@ -95,31 +98,46 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()}>
-            <Icon name="chevron-right" size={26} color={colors.text} style={styles.backIcon} />
-          </Pressable>
-          <Text style={styles.caseNo}>
-            CASE {trial.id}
-            {category ? `  ${category}` : ''}
-          </Text>
-        </View>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Pressable onPress={() => navigation.goBack()}>
+              <Icon name="chevron-right" size={26} color={colors.text} style={styles.backIcon} />
+            </Pressable>
+            <Text style={styles.caseNo}>
+              CASE {trial.id}
+              {category ? `  ${category}` : ''}
+            </Text>
+          </View>
 
-        <Text style={styles.story}>{trial.story}</Text>
+          <Text style={styles.story}>{trial.story}</Text>
 
-        {/* 첨부 사진 */}
-        {trial.photo_uri ? (
-          <Image source={{ uri: trial.photo_uri }} style={styles.photo} resizeMode="cover" />
-        ) : null}
+          {/* 첨부 사진 */}
+          {trial.photo_uri ? (
+            <Image source={{ uri: trial.photo_uri }} style={styles.photo} resizeMode="cover" />
+          ) : null}
 
-        {/* 댓글 (데모) */}
-        {trial.status === 'PENDING' && (
-          <PendingView trial={trial} navigation={navigation} />
-        )}
-        {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
-        {DEMO_MODE && <CommentsSection trialId={trial.id} />}
-      </ScrollView>
+          {/* 댓글 (데모) */}
+          {trial.status === 'PENDING' && (
+            <PendingView trial={trial} navigation={navigation} />
+          )}
+          {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
+          {DEMO_MODE && (
+            <CommentsSection
+              trialId={trial.id}
+              onInputFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            />
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -312,7 +330,13 @@ function ChoiceButton({
 }
 
 // ── 댓글 섹션 (데모: 세션 동안만 저장) ────────────────────────────
-function CommentsSection({ trialId }: { trialId: number }) {
+function CommentsSection({
+  trialId,
+  onInputFocus,
+}: {
+  trialId: number;
+  onInputFocus?: () => void;
+}) {
   const [comments, setComments] = useState<DemoComment[]>([]);
   const [text, setText] = useState('');
 
@@ -357,6 +381,7 @@ function CommentsSection({ trialId }: { trialId: number }) {
           placeholder="댓글 달기..."
           placeholderTextColor={colors.textMuted}
           onSubmitEditing={add}
+          onFocus={onInputFocus}
           returnKeyType="send"
         />
         <Pressable onPress={add} style={styles.commentSend}>

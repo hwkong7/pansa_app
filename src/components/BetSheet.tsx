@@ -47,7 +47,7 @@ export function BetSheet({
     if (user) getMyCoin(user.id).then(setCoin).catch(() => setCoin(null));
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 회색 바/헤더를 아래로 끌어내려 닫기
+  // 회색 바를 아래로 끌어내려 닫기
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, g) => g.dy > 4,
@@ -91,7 +91,7 @@ export function BetSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <Animated.View
         style={[
@@ -99,7 +99,7 @@ export function BetSheet({
           { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm, transform: [{ translateY }] },
         ]}
       >
-        {/* 드래그 존 (회색 바 + 헤더) */}
+        {/* 드래그 존 (회색 바 + 헤더): 아래로 끌어내려 닫기 */}
         <View {...panResponder.panHandlers}>
           <View style={styles.handle} />
           <View style={styles.headerRow}>
@@ -173,15 +173,18 @@ function Chip({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(20,27,52,0.45)' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(21,27,46,0.4)',
+  },
   sheet: {
     position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
+    left: 0,
+    right: 0,
     bottom: 0,
     backgroundColor: colors.white,
-    borderRadius: 28,
-    paddingHorizontal: spacing.lg,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     paddingTop: spacing.sm,
   },
   handle: {
@@ -197,6 +200,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingBottom: spacing.sm,
   },
   title: { fontSize: font.h2, fontWeight: '800', color: colors.text },
   close: { fontSize: 20, color: colors.textMuted },
@@ -210,7 +214,6 @@ const styles = StyleSheet.create({
   targetValue: { color: colors.primary, fontSize: font.body, fontWeight: '800' },
   amountBox: {
     backgroundColor: colors.cardBg,
-    borderRadius: radius.lg,
     alignItems: 'center',
     paddingVertical: spacing.lg,
     marginTop: spacing.md,
