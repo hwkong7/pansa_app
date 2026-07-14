@@ -17,7 +17,7 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-const MENU = ['내 사연 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
+const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
 
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
@@ -71,6 +71,7 @@ export default function MyPageScreen({ navigation }: Props) {
             style={styles.menu}
             onPress={() => {
               if (m === '내 사연 내역') navigation.navigate('Activity', { mode: 'myTrials' });
+              else if (m === '내 댓글 내역') navigation.navigate('Activity', { mode: 'myComments' });
               else if (m === '배팅 내역') navigation.navigate('Activity', { mode: 'myBets' });
               else if (m === 'P-COIN 지갑') navigation.navigate('Activity', { mode: 'wallet' });
               else if (m === '리워드 교환') navigation.navigate('RewardShop');

@@ -22,6 +22,6 @@ export type AppStackParamList = {
   VerdictFailed: { trialId: number; totalVotes?: number };
   Verdict: { id: number };
   RewardShop: undefined;
-  Activity: { mode: 'myTrials' | 'myBets' | 'wallet' };
+  Activity: { mode: 'myTrials' | 'myComments' | 'myBets' | 'wallet' };
   ProfileSettings: undefined;
 };

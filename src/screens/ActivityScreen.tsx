@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { listMyBets, type MyBetRow } from '@/api/bets';
+import { listMyComments, type MyCommentRow } from '@/api/comments';
 import { getMyCoin, getMyLedger } from '@/api/profile';
 import { listMyTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
@@ -15,6 +16,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Activity'>;
 
 const TITLES = {
   myTrials: '내 사연 내역',
+  myComments: '내 댓글 내역',
   myBets: '배팅 내역',
   wallet: 'P-COIN 지갑',
 } as const;
@@ -24,6 +26,7 @@ export default function ActivityScreen({ navigation, route }: Props) {
   const { user } = useAuth();
 
   const [trials, setTrials] = useState<Trial[]>([]);
+  const [comments, setComments] = useState<MyCommentRow[]>([]);
   const [bets, setBets] = useState<MyBetRow[]>([]);
   const [ledger, setLedger] = useState<CoinLedgerEntry[]>([]);
   const [coin, setCoin] = useState(0);
@@ -31,6 +34,7 @@ export default function ActivityScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!user) return;
     if (mode === 'myTrials') listMyTrials(user.id).then(setTrials).catch(() => {});
+    if (mode === 'myComments') listMyComments(user.id).then(setComments).catch(() => {});
     if (mode === 'myBets') listMyBets().then(setBets).catch(() => {});
     if (mode === 'wallet') {
       getMyCoin(user.id).then(setCoin).catch(() => {});
@@ -78,6 +82,31 @@ export default function ActivityScreen({ navigation, route }: Props) {
             </Card>
           )}
           ListEmptyComponent={<Text style={styles.empty}>작성한 사연이 없어요.</Text>}
+        />
+      )}
+
+      {mode === 'myComments' && (
+        <FlatList
+          data={comments}
+          keyExtractor={(c) => String(c.id)}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <Card
+              bg={colors.white}
+              style={styles.row}
+              onPress={() => navigation.navigate('TrialDetail', { id: item.trial.id })}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {item.trial.title.replace(/^\[.+?\]\s*/, '')}
+                </Text>
+                <Text style={styles.rowMeta} numberOfLines={1}>
+                  {item.text}
+                </Text>
+              </View>
+            </Card>
+          )}
+          ListEmptyComponent={<Text style={styles.empty}>작성한 댓글이 없어요.</Text>}
         />
       )}
 

@@ -297,6 +297,21 @@ export function demoMyTrials(): Trial[] {
   return demoState.trials.filter((t) => DEMO_MY_TRIAL_IDS.includes(t.id));
 }
 
+// 데모: 내가 작성한 댓글 목록 (마이페이지 '내 댓글 내역'용)
+export function demoMyComments(): { id: number; text: string; created_at: string; trial: Trial }[] {
+  const rows: { id: number; text: string; created_at: string; trial: Trial }[] = [];
+  for (const [trialId, list] of Object.entries(demoState.comments)) {
+    const trial = demoState.trials.find((t) => t.id === Number(trialId));
+    if (!trial) continue;
+    for (const c of list) {
+      if (c.nickname === DEMO_USER.nickname) {
+        rows.push({ id: c.id, text: c.text, created_at: c.created_at, trial });
+      }
+    }
+  }
+  return rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
 // 데모: 내 배팅 내역 (재판별)
 export function demoMyBets(): { trial: Trial; choice: Choice; amount: number; payout: number; settled: boolean }[] {
   return Object.entries(demoState.myBets)

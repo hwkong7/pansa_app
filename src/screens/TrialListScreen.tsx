@@ -123,37 +123,43 @@ export default function TrialListScreen({ navigation }: Props) {
           )}
         />
 
-        <View style={styles.sortRow}>
-          <Pressable onPress={() => setSortOpen((v) => !v)} style={styles.sortTrigger}>
-            <Text style={styles.sortTriggerText}>{currentSortLabel}</Text>
-            <Icon
-              name="chevron-down"
-              size={14}
-              color={colors.textMuted}
-              style={sortOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
-            />
-          </Pressable>
-        </View>
+        <View style={styles.countRow}>
+          <Text style={styles.countText}>
+            {category} <Text style={styles.countNum}>{filtered.length}</Text>
+          </Text>
 
-        {sortOpen && (
-          <View style={styles.sortMenu}>
-            {SORTS.map((o) => (
-              <Pressable
-                key={o.key}
-                style={styles.sortMenuItem}
-                onPress={() => {
-                  setSort(o.key);
-                  setSortOpen(false);
-                }}
-              >
-                <Text style={[styles.sortMenuItemText, sort === o.key && styles.sortMenuItemTextActive]}>
-                  {o.label}
-                </Text>
-                {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
-              </Pressable>
-            ))}
+          <View style={styles.sortRow}>
+            <Pressable onPress={() => setSortOpen((v) => !v)} style={styles.sortTrigger}>
+              <Text style={styles.sortTriggerText}>{currentSortLabel}</Text>
+              <Icon
+                name="chevron-down"
+                size={14}
+                color={colors.textMuted}
+                style={sortOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
+              />
+            </Pressable>
+
+            {sortOpen && (
+              <View style={styles.sortMenu}>
+                {SORTS.map((o) => (
+                  <Pressable
+                    key={o.key}
+                    style={styles.sortMenuItem}
+                    onPress={() => {
+                      setSort(o.key);
+                      setSortOpen(false);
+                    }}
+                  >
+                    <Text style={[styles.sortMenuItemText, sort === o.key && styles.sortMenuItemTextActive]}>
+                      {o.label}
+                    </Text>
+                    {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
-        )}
+        </View>
       </View>
 
       <FlatList
@@ -185,7 +191,7 @@ export default function TrialListScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, zIndex: 10, elevation: 10 },
   title: { fontSize: font.h1, fontWeight: '800', color: colors.text },
   searchBox: {
     flexDirection: 'row',
@@ -199,7 +205,18 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16 },
   searchInput: { flex: 1, fontSize: font.body, color: colors.text },
   cat: { fontSize: font.body, color: colors.textMuted },
-  sortRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.xs },
+  countRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  countText: { fontSize: font.small, color: colors.text, fontWeight: '700' },
+  countNum: { color: colors.primary, fontWeight: '800' },
+  sortRow: {
+    position: 'relative',
+    zIndex: 10,
+  },
   sortTrigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -209,13 +226,20 @@ const styles = StyleSheet.create({
   },
   sortTriggerText: { fontSize: font.small, color: colors.textMuted, fontWeight: '700' },
   sortMenu: {
-    alignSelf: 'flex-end',
-    marginBottom: spacing.sm,
+    position: 'absolute',
+    top: '100%',
+    right: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.white,
     overflow: 'hidden',
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   sortMenuItem: {
     flexDirection: 'row',
