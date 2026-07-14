@@ -185,6 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
   },
   handle: {
@@ -214,6 +215,7 @@ const styles = StyleSheet.create({
   targetValue: { color: colors.primary, fontSize: font.body, fontWeight: '800' },
   amountBox: {
     backgroundColor: colors.cardBg,
+    borderRadius: radius.lg,
     alignItems: 'center',
     paddingVertical: spacing.lg,
     marginTop: spacing.md,
