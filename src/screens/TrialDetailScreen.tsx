@@ -113,13 +113,6 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           <Image source={{ uri: trial.photo_uri }} style={styles.photo} resizeMode="cover" />
         ) : null}
 
-        {trial.status === 'PENDING' && (
-          <PendingView trial={trial} navigation={navigation} />
-        )}
-        {trial.status === 'OPEN' && (
-          <OpenView trial={trial} onChanged={load} />
-        )}
-
         {/* 댓글 (데모) */}
         {DEMO_MODE && <CommentsSection trialId={trial.id} />}
         {trial.status === 'PENDING' && (
@@ -132,13 +125,13 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
 }
 
 // ── PENDING: 상대방 수락 대기 + 초대 링크 공유 ────────────────────
-function PendingView({
-  trial,
-  navigation,
-}: {
-  trial: Trial;
-  navigation: Props['navigation'];
-}) {
+// function PendingView({
+//   trial,
+//   navigation,
+// }: {
+//   trial: Trial;
+//   navigation: Props['navigation'];
+// }) {
 function PendingView({
   trial,
   navigation,
@@ -184,7 +177,7 @@ function PendingView({
 }
 
 // ── OPEN: 동의완료 + 투표진행 + 편선택 + 베팅 시트 + 재판 끝내기 ──
-function OpenView({ trial, onChanged }: { trial: Trial; onChanged: () => void }) {
+function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => void }) {
   const [choice, setChoice] = useState<Choice | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -212,7 +205,7 @@ function OpenView({ trial, onChanged }: { trial: Trial; onChanged: () => void })
     try {
       await placeBet(trial.id, choice!, amount);
       setSheetOpen(false);
-      onChanged();
+      onBetPlaced();
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '베팅에 실패했어요');
     }
@@ -222,9 +215,9 @@ function OpenView({ trial, onChanged }: { trial: Trial; onChanged: () => void })
   const endTrial = async () => {
     setEnding(true);
     try {
-      // 과반 판정 후 상태 변경 → onChanged()로 새로고침 → 상위 effect가 결과 화면으로 이동
+      // 과반 판정 후 상태 변경 → onBetPlaced()로 새로고침 → 상위 effect가 결과 화면으로 이동
       await endTrialDemo(trial.id);
-      onChanged();
+      onBetPlaced();
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '재판을 끝내지 못했어요');
       setEnding(false);
@@ -465,4 +458,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
   },
   commentSendText: { color: colors.white, fontWeight: '700', fontSize: font.small },
-});}
+});

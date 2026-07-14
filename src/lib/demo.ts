@@ -6,7 +6,6 @@ import { MIN_VOTES_TO_SETTLE, type Choice, type CoinLedgerEntry, type Profile, t
  *  false → 실제 Supabase 백엔드에 연결.
  */
 export const DEMO_MODE = true;
-export const DEMO_MODE = true;
 
 export const DEMO_USER = { id: 'demo-user', nickname: '익명의판사' };
 
@@ -231,17 +230,17 @@ export function demoEndTrial(trialId: number): Choice | 'FAILED' {
   return winner;
 }
 
-// 데모: 피고 수락/거절
-export function demoRespondToTrial(token: string, accept: boolean) {
-  const t = demoState.trials.find((x) => x.invite_token === token);
-  if (!t) return;
-  if (accept) {
-    t.status = 'OPEN';
-    t.closes_at = inDays(1);
-  } else {
-    t.status = 'REJECTED';
-  }
-}
+// // 데모: 피고 수락/거절
+// export function demoRespondToTrial(token: string, accept: boolean) {
+//   const t = demoState.trials.find((x) => x.invite_token === token);
+//   if (!t) return;
+//   if (accept) {
+//     t.status = 'OPEN';
+//     t.closes_at = inDays(1);
+//   } else {
+//     t.status = 'REJECTED';
+//   }
+// }
 
 // 데모: 댓글
 export function demoGetComments(trialId: number): DemoComment[] {
