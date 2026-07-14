@@ -44,7 +44,10 @@ export type IconName =
   | 'settings'
   | 'heart'
   | 'check'
-  | 'close';
+  | 'close'
+  | 'crop'
+  | 'rotate'
+  | 'flip-horizontal';
 
 // 방식 B로 전환할 아이콘 이름 (업로드된 Figma SVG 사용)
 const USE_CUSTOM: IconName[] = [
@@ -98,6 +101,9 @@ const A_MAP: Record<IconName, Vec> = {
   heart: { set: 'feather', glyph: 'heart' },
   check: { set: 'feather', glyph: 'check' },
   close: { set: 'feather', glyph: 'x' },
+  crop: { set: 'mci', glyph: 'crop' },
+  rotate: { set: 'mci', glyph: 'rotate-right' },
+  'flip-horizontal': { set: 'mci', glyph: 'flip-horizontal' },
 };
 
 export function Icon({

@@ -55,6 +55,7 @@ export interface Profile {
   id: string;
   nickname?: string | null;
   coin: number;
+  photo_uri?: string | null; // 프로필 사진 (데모: 로컬 uri)
 }
 
 // 성립 최소 득표수 (디자인: "성립기준 10표")

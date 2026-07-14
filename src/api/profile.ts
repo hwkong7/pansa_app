@@ -5,6 +5,7 @@ import {
   demoLedger,
   demoState,
   demoUpdateNickname,
+  demoUpdatePhoto,
 } from '@/lib/demo';
 import type { CoinLedgerEntry, Profile } from '@/lib/types';
 
@@ -34,6 +35,20 @@ export async function updateMyNickname(userId: string, nickname: string): Promis
   const { error } = await supabase
     .from('profiles')
     .update({ nickname })
+    .eq('id', userId);
+  if (error) throw error;
+}
+
+export async function updateMyPhoto(userId: string, photoUri: string): Promise<void> {
+  if (DEMO_MODE) {
+    demoUpdatePhoto(photoUri);
+    return;
+  }
+  // NOTE: 실제 연동 시 스토리지 업로드 후 반환된 공개 URL을 저장해야 하나,
+  // 스토리지 버킷/업로드 규칙이 아직 확정되지 않아 우선 profiles 테이블 직접 update로 처리한다.
+  const { error } = await supabase
+    .from('profiles')
+    .update({ photo_uri: photoUri })
     .eq('id', userId);
   if (error) throw error;
 }

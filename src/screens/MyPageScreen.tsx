@@ -2,7 +2,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { signOut } from '@/api/auth';
 import { listMyBets } from '@/api/bets';
 import { getMyProfile } from '@/api/profile';
@@ -57,7 +57,11 @@ export default function MyPageScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.profileRow}>
           <View style={styles.avatar}>
-            <Icon name="mypage" size={26} color={colors.primary} />
+            {profile?.photo_uri ? (
+              <Image source={{ uri: profile.photo_uri }} style={styles.avatarImg} />
+            ) : (
+              <Icon name="mypage" size={26} color={colors.primary} />
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.nickname}>{nickname}</Text>
@@ -141,7 +145,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardBg,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: 56, height: 56, borderRadius: 28 },
   nickname: { fontSize: font.h3, fontWeight: '800', color: colors.text },
   profileMeta: { color: colors.textMuted, fontSize: font.small, marginTop: 2 },
   gear: { fontSize: 22 },

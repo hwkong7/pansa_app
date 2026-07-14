@@ -43,12 +43,14 @@ export type DemoComment = { id: number; nickname: string; text: string; created_
 export const demoState: {
   coin: number;
   nickname: string;
+  photoUri: string | null;
   trials: Trial[];
   myBets: Record<number, MyBet>;
   comments: Record<number, DemoComment[]>;
 } = {
   coin: 1240,
   nickname: DEMO_USER.nickname,
+  photoUri: null,
   myBets: {
     12300: { choice: 'A', amount: 500, payout: 0 },
   },
@@ -142,11 +144,17 @@ export const DEMO_PROFILE = (): Profile => ({
   id: DEMO_USER.id,
   nickname: demoState.nickname,
   coin: demoState.coin,
+  photo_uri: demoState.photoUri,
 });
 
 // 데모: 닉네임 변경 (프로필 설정 화면)
 export function demoUpdateNickname(nickname: string) {
   demoState.nickname = nickname;
+}
+
+// 데모: 프로필 사진 변경 (프로필 설정 화면)
+export function demoUpdatePhoto(photoUri: string) {
+  demoState.photoUri = photoUri;
 }
 
 export function demoLedger(): CoinLedgerEntry[] {
