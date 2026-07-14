@@ -360,7 +360,11 @@ function CommentsSection({
       {comments.map((c) => (
         <View key={c.id} style={styles.commentRow}>
           <View style={styles.commentAvatar}>
-            <Icon name="mypage" size={16} color={colors.primary} />
+            {c.photo_uri ? (
+              <Image source={{ uri: c.photo_uri }} style={styles.commentAvatarImg} />
+            ) : (
+              <Icon name="mypage" size={16} color={colors.primary} />
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.commentNick}>{c.nickname}</Text>
@@ -458,7 +462,9 @@ const styles = StyleSheet.create({
   commentAvatar: {
     width: 30, height: 30, borderRadius: 15,
     backgroundColor: colors.cardBg, alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  commentAvatarImg: { width: 30, height: 30, borderRadius: 15 },
   commentNick: { fontSize: font.small, fontWeight: '700', color: colors.text },
   commentText: { fontSize: font.body, color: colors.text, marginTop: 2, lineHeight: 20 },
   commentEmpty: { color: colors.textMuted, fontSize: font.small, marginBottom: spacing.md },

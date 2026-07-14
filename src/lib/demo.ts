@@ -38,7 +38,13 @@ const inDays = (d: number) => new Date(now + d * 86_400_000).toISOString();
 const agoDays = (d: number) => new Date(now - d * 86_400_000).toISOString();
 
 type MyBet = { choice: Choice; amount: number; payout: number };
-export type DemoComment = { id: number; nickname: string; text: string; created_at: string };
+export type DemoComment = {
+  id: number;
+  nickname: string;
+  text: string;
+  created_at: string;
+  photo_uri?: string | null;
+};
 
 export const demoState: {
   coin: number;
@@ -258,9 +264,10 @@ export function demoAddComment(trialId: number, text: string): DemoComment {
   const list = demoState.comments[trialId] ?? [];
   const c: DemoComment = {
     id: (list[list.length - 1]?.id ?? 0) + 1,
-    nickname: DEMO_USER.nickname,
+    nickname: demoState.nickname,
     text,
     created_at: new Date().toISOString(),
+    photo_uri: demoState.photoUri,
   };
   demoState.comments[trialId] = [...list, c];
   return c;

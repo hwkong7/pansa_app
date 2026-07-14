@@ -135,6 +135,7 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
       await updateMyPhoto(user.id, pendingPhotoUri);
       setPhotoUri(pendingPhotoUri);
       setPendingPhotoUri(null);
+      Alert.alert('완료', '저장되었습니다.');
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '프로필 사진 변경에 실패했어요');
     } finally {
@@ -151,7 +152,7 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
     setSaving(true);
     try {
       await updateMyNickname(user.id, nickname.trim());
-      Alert.alert('완료', '닉네임이 변경됐어요.');
+      Alert.alert('완료', '저장되었습니다.');
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '닉네임 변경에 실패했어요');
     } finally {
