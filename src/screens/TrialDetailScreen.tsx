@@ -114,24 +114,16 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
         ) : null}
 
         {/* 댓글 (데모) */}
-        {DEMO_MODE && <CommentsSection trialId={trial.id} />}
         {trial.status === 'PENDING' && (
           <PendingView trial={trial} navigation={navigation} />
         )}
         {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
+        {DEMO_MODE && <CommentsSection trialId={trial.id} />}
       </ScrollView>
     </Screen>
   );
 }
 
-// ── PENDING: 상대방 수락 대기 + 초대 링크 공유 ────────────────────
-// function PendingView({
-//   trial,
-//   navigation,
-// }: {
-//   trial: Trial;
-//   navigation: Props['navigation'];
-// }) {
 function PendingView({
   trial,
   navigation,
@@ -290,6 +282,32 @@ function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => voi
         onConfirm={confirmBet}
       />
     </View>
+  );
+}
+
+function ChoiceButton({
+  label,
+  active,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={[
+        styles.choiceBtn,
+        active && styles.choiceBtnActive,
+        disabled && { opacity: 0.4 },
+      ]}
+    >
+      <Text style={[styles.choiceText, active && styles.choiceTextActive]}>{label}</Text>
+    </Pressable>
   );
 }
 
