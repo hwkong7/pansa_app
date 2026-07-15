@@ -8,6 +8,7 @@ import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
 import { useAttendance } from '@/lib/attendance';
+import { DEMO_MODE, demoGetComments } from '@/lib/demo';
 import type { Trial } from '@/lib/types';
 import type { AppStackParamList, TabParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
@@ -164,7 +165,7 @@ export default function HomeScreen({ navigation }: Props) {
               {stripCategory(hottest.title)}
             </Text>
             <Text style={styles.widgetMeta}>
-              진행중 · 조회 {hottest.view_count ?? 0}
+              진행중 · 조회 {hottest.view_count ?? 0} · 댓글 {commentCount(hottest.id)}
             </Text>
           </Card>
         )}
@@ -192,7 +193,7 @@ export default function HomeScreen({ navigation }: Props) {
               </Text>
               <Text style={styles.widgetMeta}>
                 참여 {best.total_votes ?? 0} · 베팅 {(best.total_bet ?? 0).toLocaleString()}P · 조회{' '}
-                {best.view_count ?? 0}
+                {best.view_count ?? 0} · 댓글 {commentCount(best.id)}
               </Text>
             </Pressable>
           </Card>
@@ -213,6 +214,11 @@ export default function HomeScreen({ navigation }: Props) {
 
 function stripCategory(title: string) {
   return title.replace(/^\[.+?\]\s*/, '');
+}
+
+// 데모: 댓글은 세션 동안만 저장되는 목업이라 DEMO_MODE에서만 집계
+function commentCount(trialId: number) {
+  return DEMO_MODE ? demoGetComments(trialId).length : 0;
 }
 
 const styles = StyleSheet.create({
