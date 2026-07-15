@@ -6,6 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#2F6BF6",
       "resizeMode": "contain"
@@ -22,14 +23,20 @@
       "adaptiveIcon": {
         "backgroundColor": "#2F6BF6"
       },
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro"
     },
     "extra": {
       "supabaseUrl": "https://obtnbductdphderzkftf.supabase.co",
-      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr"
+      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr",
+      "eas": {
+        "projectId": "0762a87f-1f6c-4b3f-a689-f273e1b96226"
+      }
     },
     "plugins": [
       [
@@ -38,6 +45,7 @@
           "photosPermission": "사연에 첨부할 이미지를 선택하기 위해 사진 접근 권한이 필요합니다."
         }
       ]
-    ]
+    ],
+    "owner": "hwkong7"
   }
 }
