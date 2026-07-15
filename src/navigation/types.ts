@@ -17,6 +17,7 @@ export type AppStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
   CreateTrial: undefined;
   TrialDetail: { id: number };
+  TrialPending: { id: number };
   ConsentRequest: { token: string };
   TrialCanceled: { trialId: number };
   VerdictFailed: { trialId: number; totalVotes?: number };

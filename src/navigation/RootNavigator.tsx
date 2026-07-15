@@ -16,6 +16,7 @@ import RewardShopScreen from '@/screens/RewardShopScreen';
 import ActivityScreen from '@/screens/ActivityScreen';
 import SignupScreen from '@/screens/SignupScreen';
 import TrialDetailScreen from '@/screens/TrialDetailScreen';
+import TrialPendingScreen from '@/screens/TrialPendingScreen';
 import VerdictScreen from '@/screens/VerdictScreen';
 import { colors } from '@/theme';
 import TabNavigator from './TabNavigator';
@@ -50,6 +51,7 @@ function AppFlow() {
       <AppStack.Screen name="Tabs" component={TabNavigator} />
       <AppStack.Screen name="CreateTrial" component={CreateTrialScreen} />
       <AppStack.Screen name="TrialDetail" component={TrialDetailScreen} />
+      <AppStack.Screen name="TrialPending" component={TrialPendingScreen} />
       <AppStack.Screen name="ConsentRequest" component={ConsentRequestScreen} />
       <AppStack.Screen name="TrialCanceled" component={TrialCanceledScreen} />
       <AppStack.Screen name="VerdictFailed" component={VerdictFailedScreen} />

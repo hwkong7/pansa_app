@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,10 +14,10 @@ import {
   View,
 } from 'react-native';
 import { placeBet } from '@/api/bets';
-import { buildInviteUrl, endTrialDemo, getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
+import { endTrialDemo, getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
 import { BetSheet } from '@/components/BetSheet';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
-import { Button, Card, Screen } from '@/components/ui';
+import { Button, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import {
   DEMO_MODE,
@@ -71,10 +70,12 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
     incrementTrialView(id).catch(() => {});
   }, [id]);
 
-  // SETTLED/REJECTED 전환 시 결과 화면으로 이동
+  // PENDING/SETTLED/REJECTED 전환 시 알맞은 화면으로 이동
   useEffect(() => {
     if (!trial) return;
-    if (trial.status === 'REJECTED') {
+    if (trial.status === 'PENDING') {
+      navigation.replace('TrialPending', { id: trial.id });
+    } else if (trial.status === 'REJECTED') {
       navigation.replace('TrialCanceled', { trialId: trial.id });
     } else if (trial.status === 'SETTLED') {
       const total = trial.total_votes ?? (trial.votes_a ?? 0) + (trial.votes_b ?? 0);
@@ -146,10 +147,6 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
             </ScrollView>
           )}
 
-          {/* 댓글 (데모) */}
-          {trial.status === 'PENDING' && (
-            <PendingView trial={trial} navigation={navigation} />
-          )}
           {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
           {DEMO_MODE && (
             <CommentsSection
@@ -167,50 +164,6 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
         />
       </KeyboardAvoidingView>
     </Screen>
-  );
-}
-
-function PendingView({
-  trial,
-  navigation,
-}: {
-  trial: Trial;
-  navigation: Props['navigation'];
-}) {
-  const inviteUrl = trial.invite_token ? buildInviteUrl(trial.invite_token) : null;
-  return (
-    <>
-      <View style={styles.divider} />
-      <Card style={styles.pendingCard}>
-        <Icon name="hourglass" size={40} color={colors.primary} />
-        <Text style={styles.pendingTitle}>상대방(피고) 수락 대기 중</Text>
-        <Text style={styles.pendingSub}>
-          24시간 내 응답이 없으면 자동 취소되고 판돈은 환불돼요.
-        </Text>
-        {inviteUrl && (
-          <>
-            <Text style={styles.inviteUrl} numberOfLines={1}>
-              {inviteUrl}
-            </Text>
-            <Button
-              title="동의요청 링크 복사"
-              variant="outline"
-              style={{ marginTop: spacing.md }}
-              onPress={async () => {
-                await Clipboard.setStringAsync(inviteUrl);
-                if (trial.invite_token) {
-                  navigation.navigate('ConsentRequest', { token: trial.invite_token });
-                }
-                // // 복사 후 피고 동의요청 화면으로 이동
-                // if (trial.invite_token) {
-                //   navigation.navigate('ConsentRequest', { token: trial.invite_token });
-                // }
-              }}
-            />
-          </>
-        )}
-      </Card>
-    </>
   );
 }
 
@@ -477,12 +430,6 @@ const styles = StyleSheet.create({
   betRowLabel: { fontSize: font.h3, fontWeight: '800', color: colors.text },
   betRowHint: { fontSize: font.body, color: colors.textMuted },
   endNote: { color: colors.textMuted, fontSize: font.tiny, marginTop: spacing.sm, lineHeight: 16 },
-
-  // pending
-  pendingCard: { alignItems: 'center', paddingVertical: spacing.xl },
-  pendingTitle: { fontSize: font.h3, fontWeight: '800', color: colors.text, marginTop: spacing.md },
-  pendingSub: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, fontSize: font.small },
-  inviteUrl: { color: colors.primary, marginTop: spacing.lg, fontSize: font.small },
 
   // comments
   commentsWrap: {},
