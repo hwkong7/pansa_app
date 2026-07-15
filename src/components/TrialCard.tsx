@@ -1,8 +1,14 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Card } from './ui';
+import { DEMO_MODE, demoGetComments } from '@/lib/demo';
 import type { Trial } from '@/lib/types';
 import { colors, font, spacing } from '@/theme';
+
+// 데모: 댓글은 세션 동안만 저장되는 목업이라 DEMO_MODE에서만 집계
+function commentCount(trialId: number) {
+  return DEMO_MODE ? demoGetComments(trialId).length : 0;
+}
 
 // 제목에 "[연애] ..." 형태로 카테고리를 넣어두었으므로 파싱해서 뱃지로 보여준다.
 function parseCategory(title: string): { category: string | null; text: string } {
@@ -48,7 +54,8 @@ export function TrialCard({
       </Text>
 
       <Text style={styles.meta}>
-        조회 {(trial.view_count ?? 0) > 0 ? trial.view_count : '-'} · 상태 {trial.status}
+        조회 {(trial.view_count ?? 0) > 0 ? trial.view_count : '-'} · 댓글{' '}
+        {commentCount(trial.id)} · 상태 {trial.status}
       </Text>
     </Card>
   );
