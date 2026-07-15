@@ -153,7 +153,9 @@ export default function TrialListScreen({ navigation }: Props) {
                     <Text style={[styles.sortMenuItemText, sort === o.key && styles.sortMenuItemTextActive]}>
                       {o.label}
                     </Text>
-                    {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
+                    <View style={styles.checkSlot}>
+                      {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -246,11 +248,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.lg,
-    paddingVertical: spacing.sm,
+    height: 40,
     paddingHorizontal: spacing.md,
   },
   sortMenuItemText: { fontSize: font.small, color: colors.textMuted },
   sortMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
+  checkSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   catActive: { color: colors.text, fontWeight: '800' },
   list: { padding: spacing.lg, paddingBottom: 120 },
   empty: {

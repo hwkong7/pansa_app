@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -41,6 +42,17 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+
+  // 댓글 입력 중 키보드가 올라오면 입력창이 가려지지 않게 맨 아래로 스크롤
+  // (TextInput의 onFocus는 키보드 애니메이션이 끝나기 전에 발생해 타이밍이 어긋나므로
+  //  키보드가 실제로 다 올라온 뒤 발생하는 이벤트를 사용한다)
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const sub = Keyboard.addListener(showEvent, () => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
+    return () => sub.remove();
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -148,12 +160,7 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           )}
 
           {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
-          {DEMO_MODE && (
-            <CommentsSection
-              trialId={trial.id}
-              onInputFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
-            />
-          )}
+          {DEMO_MODE && <CommentsSection trialId={trial.id} />}
         </ScrollView>
 
         <ImageViewerModal
@@ -311,13 +318,7 @@ function ChoiceButton({
 }
 
 // ── 댓글 섹션 (데모: 세션 동안만 저장) ────────────────────────────
-function CommentsSection({
-  trialId,
-  onInputFocus,
-}: {
-  trialId: number;
-  onInputFocus?: () => void;
-}) {
+function CommentsSection({ trialId }: { trialId: number }) {
   const [comments, setComments] = useState<DemoComment[]>([]);
   const [text, setText] = useState('');
 
@@ -366,7 +367,6 @@ function CommentsSection({
           placeholder="댓글 달기..."
           placeholderTextColor={colors.textMuted}
           onSubmitEditing={add}
-          onFocus={onInputFocus}
           returnKeyType="send"
         />
         <Pressable onPress={add} style={styles.commentSend}>

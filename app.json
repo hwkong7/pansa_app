@@ -21,7 +21,8 @@
       "package": "com.pansa.app",
       "adaptiveIcon": {
         "backgroundColor": "#2F6BF6"
-      }
+      },
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "bundler": "metro"
