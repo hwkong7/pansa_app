@@ -44,13 +44,14 @@ const FG = {
 
 const CATEGORIES = ['연애', '학업', '가족', '친구', '기타'];
 const MAX_LEN = 500;
+const MAX_PHOTOS = 5;
 
 export default function CreateTrialScreen({ navigation }: Props) {
   const [category, setCategory] = useState('연애');
   const [story, setStory] = useState('');
   const [stake, setStake] = useState('500'); // 판돈 (최소 TRIAL_MIN_STAKE 이상 정수)
   const [loading, setLoading] = useState(false);
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // 크롭 직후, 확인 전 미리보기
   const [votingDays, setVotingDays] = useState<number>(DEFAULT_VOTING_DAYS);
   const [votingPickerOpen, setVotingPickerOpen] = useState(false);
@@ -60,6 +61,10 @@ export default function CreateTrialScreen({ navigation }: Props) {
     story.trim().length >= 5 && Number.isInteger(stakeNum) && stakeNum >= TRIAL_MIN_STAKE;
 
   const pickImage = async () => {
+    if (photoUris.length >= MAX_PHOTOS) {
+      Alert.alert('첨부 제한', `사진은 최대 ${MAX_PHOTOS}장까지 첨부할 수 있어요.`);
+      return;
+    }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('권한 필요', '이미지를 첨부하려면 사진 접근 권한이 필요해요.');
@@ -75,11 +80,16 @@ export default function CreateTrialScreen({ navigation }: Props) {
   };
 
   const confirmPhoto = () => {
-    setPhotoUri(pendingPhotoUri);
+    if (!pendingPhotoUri) return;
+    setPhotoUris((prev) => [...prev, pendingPhotoUri]);
     setPendingPhotoUri(null);
   };
 
   const cancelPendingPhoto = () => setPendingPhotoUri(null);
+
+  const removePhoto = (idx: number) => {
+    setPhotoUris((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const onSubmit = async () => {
     if (!canSubmit) {
@@ -99,7 +109,7 @@ export default function CreateTrialScreen({ navigation }: Props) {
         optionB: '피고 승',
         stake: stakeNum,
         votingDays,
-        photoUri,
+        photoUris,
       });
 
       // 생성 후 초대 토큰 조회 → 피고에게 공유할 링크 생성 (가이드 3-2 ②)
@@ -177,7 +187,10 @@ export default function CreateTrialScreen({ navigation }: Props) {
               <Pressable onPress={pickImage} style={styles.photoButton}>
                 <Icon name="photo-plus" size={22} color={FG.text} />
                 <Text style={styles.hint}>
-                  이미지 첨부 <Text style={styles.hintFaint}>(선택)</Text>
+                  이미지 첨부{' '}
+                  <Text style={styles.hintFaint}>
+                    ({photoUris.length}/{MAX_PHOTOS})
+                  </Text>
                 </Text>
               </Pressable>
               <Text style={styles.count}>
@@ -201,12 +214,16 @@ export default function CreateTrialScreen({ navigation }: Props) {
               </View>
             )}
 
-            {photoUri && (
-              <View style={styles.thumbWrap}>
-                <Image source={{ uri: photoUri }} style={styles.thumb} />
-                <Pressable onPress={() => setPhotoUri(null)} style={styles.thumbRemove}>
-                  <Text style={styles.thumbRemoveText}>✕</Text>
-                </Pressable>
+            {photoUris.length > 0 && (
+              <View style={styles.thumbRow}>
+                {photoUris.map((uri, idx) => (
+                  <View key={uri} style={styles.thumbWrap}>
+                    <Image source={{ uri }} style={styles.thumb} />
+                    <Pressable onPress={() => removePhoto(idx)} style={styles.thumbRemove}>
+                      <Text style={styles.thumbRemoveText}>✕</Text>
+                    </Pressable>
+                  </View>
+                ))}
               </View>
             )}
 
@@ -351,8 +368,9 @@ const styles = StyleSheet.create({
   },
   hint: { color: FG.text, fontSize: font.small, fontWeight: '600' },
   hintFaint: { color: FG.textFaint, fontWeight: '400' },
-  thumbWrap: { marginTop: spacing.md, alignSelf: 'flex-start' },
-  thumb: { width: 96, height: 96, borderRadius: radius.md },
+  thumbRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  thumbWrap: { alignSelf: 'flex-start' },
+  thumb: { width: 88, height: 88, borderRadius: radius.md },
   thumbRemove: {
     position: 'absolute', top: -8, right: -8,
     width: 24, height: 24, borderRadius: 12,

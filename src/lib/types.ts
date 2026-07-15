@@ -35,10 +35,18 @@ export interface Trial {
   votes_b?: number | null; // 피고 득표수(사람 수)
   total_votes?: number | null;
   total_bet?: number | null; // 총 베팅액
-  photo_uri?: string | null; // 첨부 사진 (데모: 로컬 uri)
+  photo_uri?: string | null; // 첨부 사진 (레거시 단일 필드, 하위호환용)
+  photo_uris?: string[] | null; // 첨부 사진 여러 장 (데모: 로컬 uri 배열)
   deleted?: boolean; // 성립 실패로 삭제 처리된 재판 (목록에서 제외)
   view_count?: number | null; // 조회수 (상세화면 진입 시 +1)
   voting_days?: number | null; // 작성 시 선택한 투표 기간(일). 피고 수락 시점부터 적용
+}
+
+// 재판의 첨부 사진 목록 조회 (photo_uris 우선, 없으면 레거시 photo_uri로 폴백)
+export function getTrialPhotos(trial: Pick<Trial, 'photo_uri' | 'photo_uris'>): string[] {
+  if (trial.photo_uris?.length) return trial.photo_uris;
+  if (trial.photo_uri) return [trial.photo_uri];
+  return [];
 }
 
 // 코인 원장 (내역)

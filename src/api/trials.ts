@@ -26,7 +26,7 @@ export interface CreateTrialInput {
   optionA: string;
   optionB: string;
   stake: number;
-  photoUri?: string | null;
+  photoUris?: string[] | null;
   votingDays?: number;
 }
 
@@ -37,7 +37,7 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
       title: input.title,
       story: input.story,
       stake: input.stake,
-      photoUri: input.photoUri ?? null,
+      photoUris: input.photoUris ?? null,
       votingDays: input.votingDays,
     });
   }

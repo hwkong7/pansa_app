@@ -273,12 +273,12 @@ export function demoAddComment(trialId: number, text: string): DemoComment {
   return c;
 }
 
-// 데모: 재판 생성 (사진 포함)
+// 데모: 재판 생성 (사진 여러 장 포함)
 export function demoCreateTrial(input: {
   title: string;
   story: string;
   stake: number;
-  photoUri?: string | null;
+  photoUris?: string[] | null;
   votingDays?: number;
 }): number {
   const id = 12000 + Math.floor(Math.random() * 900) + 100;
@@ -298,7 +298,8 @@ export function demoCreateTrial(input: {
     votes_b: 0,
     total_votes: 0,
     total_bet: 0,
-    photo_uri: input.photoUri ?? null,
+    photo_uri: null,
+    photo_uris: input.photoUris?.length ? input.photoUris : null,
     view_count: 0,
     voting_days: input.votingDays ?? null,
   });

@@ -55,7 +55,6 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
       mediaTypes: ['images'],
       quality: 0.7,
       allowsEditing: true,
-      aspect: [1, 1],
     });
     // 크롭 직후 바로 반영하지 않고 미리보기 단계를 거쳐 사용자가 확인해야 반영됨
     if (!res.canceled && res.assets?.[0]) setPendingPhotoUri(res.assets[0].uri);

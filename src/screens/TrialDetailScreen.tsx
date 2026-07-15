@@ -17,6 +17,7 @@ import {
 import { placeBet } from '@/api/bets';
 import { buildInviteUrl, endTrialDemo, getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
 import { BetSheet } from '@/components/BetSheet';
+import { ImageViewerModal } from '@/components/ImageViewerModal';
 import { Button, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import {
@@ -25,7 +26,7 @@ import {
   demoGetComments,
   type DemoComment,
 } from '@/lib/demo';
-import { MIN_VOTES_TO_SETTLE, type Choice, type Trial } from '@/lib/types';
+import { getTrialPhotos, MIN_VOTES_TO_SETTLE, type Choice, type Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
 
@@ -39,6 +40,8 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -95,6 +98,7 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   }
 
   const category = trial.title.match(/^\[(.+?)\]/)?.[1];
+  const photos = getTrialPhotos(trial);
 
   return (
     <Screen>
@@ -120,10 +124,27 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
 
           <Text style={styles.story}>{trial.story}</Text>
 
-          {/* 첨부 사진 */}
-          {trial.photo_uri ? (
-            <Image source={{ uri: trial.photo_uri }} style={styles.photo} resizeMode="cover" />
-          ) : null}
+          {/* 첨부 사진: 눌러서 전체화면으로 보기 */}
+          {photos.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.photoRow}
+              contentContainerStyle={styles.photoRowContent}
+            >
+              {photos.map((uri, i) => (
+                <Pressable
+                  key={`${uri}-${i}`}
+                  onPress={() => {
+                    setViewerIndex(i);
+                    setViewerOpen(true);
+                  }}
+                >
+                  <Image source={{ uri }} style={styles.photo} resizeMode="cover" />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
 
           {/* 댓글 (데모) */}
           {trial.status === 'PENDING' && (
@@ -137,6 +158,13 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
             />
           )}
         </ScrollView>
+
+        <ImageViewerModal
+          visible={viewerOpen}
+          images={photos}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerOpen(false)}
+        />
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -403,11 +431,12 @@ const styles = StyleSheet.create({
   backIcon: { transform: [{ rotate: '180deg' }] },
   caseNo: { color: colors.textMuted, fontSize: font.small, fontWeight: '700' },
   story: { fontSize: font.h3, color: colors.text, lineHeight: 26, marginTop: spacing.md },
+  photoRow: { marginTop: spacing.md },
+  photoRowContent: { gap: spacing.sm },
   photo: {
-    width: '100%',
-    height: 200,
+    width: 160,
+    height: 160,
     borderRadius: radius.lg,
-    marginTop: spacing.md,
     backgroundColor: colors.cardBg,
   },
   consentLine: { color: colors.success, fontSize: font.small, fontWeight: '700', marginTop: spacing.md },
