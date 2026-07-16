@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { signOut } from '@/api/auth';
-import { listMyBets } from '@/api/bets';
+import { listMyBets, type MyBetRow } from '@/api/bets';
 import { getMyProfile } from '@/api/profile';
 import { listMyTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
@@ -19,31 +19,35 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
-
-// 데모: 승률은 정산 이력 집계가 아직 없어 더미 값으로 표시
-const DUMMY_WIN_RATE = 68;
+const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN 지갑', '알림 목록', '리워드 교환'];
 
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notif, setNotif] = useState(true);
   const [myTrialsCount, setMyTrialsCount] = useState(0);
-  const [myBetsCount, setMyBetsCount] = useState(0);
+  const [myBets, setMyBets] = useState<MyBetRow[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
       getMyProfile(user.id).then(setProfile).catch(() => {});
       listMyTrials(user.id).then((t) => setMyTrialsCount(t.length)).catch(() => {});
-      listMyBets().then((b) => setMyBetsCount(b.length)).catch(() => {});
+      listMyBets().then(setMyBets).catch(() => {});
     }, [user])
   );
 
   const nickname =
     profile?.nickname ?? (user?.user_metadata?.nickname as string) ?? '익명의판사';
   const coin = profile?.coin ?? 0;
+  const myBetsCount = myBets.length;
   const caseCount = myTrialsCount + myBetsCount;
+
+  const settledBets = myBets.filter((b) => b.settled);
+  const winRateLabel =
+    settledBets.length === 0
+      ? '-'
+      : `${Math.round((settledBets.filter((b) => b.payout > 0).length / settledBets.length) * 100)}%`;
 
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
@@ -66,7 +70,7 @@ export default function MyPageScreen({ navigation }: Props) {
           <View style={{ flex: 1 }}>
             <Text style={styles.nickname}>{nickname}</Text>
             <Text style={styles.profileMeta}>
-              CASE {caseCount} 참여 · 승률 {DUMMY_WIN_RATE}%
+              CASE {caseCount} 참여 · 승률 {winRateLabel}
             </Text>
           </View>
           <Pressable onPress={() => navigation.navigate('ProfileSettings')} hitSlop={10}>
@@ -91,6 +95,7 @@ export default function MyPageScreen({ navigation }: Props) {
               else if (m === '내 댓글 내역') navigation.navigate('Activity', { mode: 'myComments' });
               else if (m === '배팅 내역') navigation.navigate('Activity', { mode: 'myBets' });
               else if (m === 'P-COIN 지갑') navigation.navigate('Activity', { mode: 'wallet' });
+              else if (m === '알림 목록') navigation.navigate('Notifications');
               else if (m === '리워드 교환') navigation.navigate('RewardShop');
               else Alert.alert(m, '준비 중이에요.');
             }}

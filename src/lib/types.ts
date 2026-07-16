@@ -40,6 +40,7 @@ export interface Trial {
   deleted?: boolean; // 성립 실패로 삭제 처리된 재판 (목록에서 제외)
   view_count?: number | null; // 조회수 (상세화면 진입 시 +1)
   voting_days?: number | null; // 작성 시 선택한 투표 기간(일). 피고 수락 시점부터 적용
+  comment_count?: number | null; // 댓글 수 (댓글 작성 트리거가 증가시킴)
 }
 
 // 재판의 첨부 사진 목록 조회 (photo_uris 우선, 없으면 레거시 photo_uri로 폴백)
@@ -64,6 +65,26 @@ export interface Profile {
   nickname?: string | null;
   coin: number;
   photo_uri?: string | null; // 프로필 사진 (데모: 로컬 uri)
+}
+
+// 알림 종류: 재판요청 / 재판성립 / 댓글 / 베팅 / 재판결과(당사자) / 재판종료(베팅자)
+export type NotificationType =
+  | 'TRIAL_REQUEST'
+  | 'TRIAL_ACCEPTED'
+  | 'COMMENT'
+  | 'BET'
+  | 'VERDICT'
+  | 'TRIAL_CLOSED';
+
+export interface AppNotification {
+  id: number;
+  user_id: string;
+  type: NotificationType;
+  trial_id: number | null;
+  actor_id: string | null;
+  message: string;
+  is_read: boolean;
+  created_at: string;
 }
 
 // 성립 최소 득표수 (디자인: "성립기준 10표")

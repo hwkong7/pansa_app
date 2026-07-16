@@ -15,13 +15,19 @@ function validateFormat(email: string, password: string) {
   if (password.length < 4) throw new Error('비밀번호는 4자 이상 입력해주세요');
 }
 
-export async function signUp(email: string, password: string) {
+export async function signUp(email: string, password: string, nickname: string) {
   if (DEMO_MODE) {
     validateFormat(email, password);
     demoAuth.signIn();
     return { user: { id: 'demo-user' } };
   }
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  // 닉네임은 auth user_metadata로 전달 → 가입 트리거(005_signup_bonus.sql)가
+  // raw_user_meta_data.nickname으로 읽어 profiles.nickname에 저장하고 500코인을 지급한다.
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { nickname } },
+  });
   if (error) throw error; // 서버 에러 메시지는 한국어 그대로 (가이드 3-4)
   return data;
 }

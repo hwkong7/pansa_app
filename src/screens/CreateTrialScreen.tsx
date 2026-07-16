@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
@@ -16,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { buildInviteUrl, createTrial, getInviteToken } from '@/api/trials';
+import { createTrial } from '@/api/trials';
 import { BottomBar, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import type { AppStackParamList } from '@/navigation/types';
@@ -50,6 +49,7 @@ export default function CreateTrialScreen({ navigation }: Props) {
   const [category, setCategory] = useState('연애');
   const [story, setStory] = useState('');
   const [stake, setStake] = useState('500'); // 판돈 (최소 TRIAL_MIN_STAKE 이상 정수)
+  const [defendantNickname, setDefendantNickname] = useState('');
   const [loading, setLoading] = useState(false);
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // 크롭 직후, 확인 전 미리보기
@@ -58,7 +58,10 @@ export default function CreateTrialScreen({ navigation }: Props) {
 
   const stakeNum = parseInt(stake, 10);
   const canSubmit =
-    story.trim().length >= 5 && Number.isInteger(stakeNum) && stakeNum >= TRIAL_MIN_STAKE;
+    story.trim().length >= 5 &&
+    Number.isInteger(stakeNum) &&
+    stakeNum >= TRIAL_MIN_STAKE &&
+    defendantNickname.trim().length > 0;
 
   const pickImage = async () => {
     if (photoUris.length >= MAX_PHOTOS) {
@@ -93,7 +96,10 @@ export default function CreateTrialScreen({ navigation }: Props) {
 
   const onSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert('입력 확인', `사연(5자 이상)과 판돈(최소 ${TRIAL_MIN_STAKE}P 이상)을 확인해주세요.`);
+      Alert.alert(
+        '입력 확인',
+        `사연(5자 이상), 상대방 닉네임, 판돈(최소 ${TRIAL_MIN_STAKE}P 이상)을 확인해주세요.`
+      );
       return;
     }
     setLoading(true);
@@ -108,37 +114,14 @@ export default function CreateTrialScreen({ navigation }: Props) {
         optionA: '원고 승',
         optionB: '피고 승',
         stake: stakeNum,
+        defendantNickname: defendantNickname.trim(),
         votingDays,
         photoUris,
       });
 
-      // 생성 후 초대 토큰 조회 → 피고에게 공유할 링크 생성 (가이드 3-2 ②)
-      const token = await getInviteToken(trialId);
-      const inviteUrl = token ? buildInviteUrl(token) : null;
-
-      if (inviteUrl) {
-        Alert.alert(
-          '동의요청 링크가 생성됐어요',
-          '피고(상대방)에게 아래 링크를 공유하세요.\n\n' + inviteUrl,
-          [
-            {
-              text: '링크 복사',
-              onPress: async () => {
-                await Clipboard.setStringAsync(inviteUrl);
-                // 복사 후 피고 동의요청 화면(ConsentRequest)으로 이동
-                if (token) navigation.navigate('ConsentRequest', { token });
-                else navigation.navigate('TrialDetail', { id: trialId });
-              },
-            },
-            {
-              text: '확인',
-              onPress: () => navigation.navigate('TrialDetail', { id: trialId }),
-            },
-          ]
-        );
-      } else {
-        navigation.navigate('TrialDetail', { id: trialId });
-      }
+      Alert.alert('요청 완료', '피고에게 재판을 요청하였습니다.', [
+        { text: '확인', onPress: () => navigation.navigate('TrialPending', { id: trialId }) },
+      ]);
     } catch (e: any) {
       // 서버 에러 메시지 그대로 (가이드 3-4)
       Alert.alert('오류', e?.message ?? '재판 생성에 실패했어요');
@@ -229,6 +212,24 @@ export default function CreateTrialScreen({ navigation }: Props) {
 
             <Text style={styles.privacy}>
               개인정보(이름/연락처)는 업로드 시 자동으로 필터 처리돼요
+            </Text>
+          </Card>
+
+          {/* 상대방(피고) 지정 — 닉네임으로 검색해 재판 요청을 보낸다 */}
+          <Card bg={FG.white} style={styles.rowCard}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.rowLabel}>상대방 닉네임</Text>
+              <TextInput
+                style={styles.defendantInput}
+                value={defendantNickname}
+                onChangeText={setDefendantNickname}
+                placeholder="닉네임 입력"
+                placeholderTextColor={FG.textFaint}
+                autoCapitalize="none"
+              />
+            </View>
+            <Text style={styles.stakeNotice}>
+              입력한 닉네임의 상대방에게 재판 요청이 전달돼요.
             </Text>
           </Card>
 
@@ -414,6 +415,15 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: font.body, fontWeight: '700', color: FG.text, flexShrink: 0 },
   rowValueWrap: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0 },
   rowValue: { fontSize: font.body, fontWeight: '600', color: FG.textMuted },
+  defendantInput: {
+    flex: 1,
+    marginLeft: spacing.md,
+    textAlign: 'right',
+    fontSize: font.body,
+    fontWeight: '600',
+    color: FG.text,
+    padding: 0,
+  },
 
   stakeInputWrap: {
     flexDirection: 'row',
