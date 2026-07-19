@@ -1,13 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import {
-  DEMO_MODE,
-  demoCreateTrial,
-  demoEndTrial,
-  demoRespondToTrial,
-  demoIncrementView,
-  demoState,
-} from '@/lib/demo';
-import type { Trial, TrialStatus } from '@/lib/types';
+import type { DefendantProfile, Trial, TrialStatus } from '@/lib/types';
 
 /**
  * 재판 API.
@@ -16,9 +8,18 @@ import type { Trial, TrialStatus } from '@/lib/types';
  *   - 쓰기(생성/수락/거절/베팅)는 "무조건 rpc" 만 사용한다.
  *   - 읽기(조회)는 .from().select() 자유롭게 사용.
  *   - 마감/정산은 서버가 매분 자동 처리한다. 프론트에서 마감/정산 코드는 만들지 않는다.
- *
- * DEMO_MODE 가 true 면 백엔드 대신 목업 데이터로 동작한다 (src/lib/demo.ts).
  */
+
+// ── 읽기: 피고인 유저 검색 (가이드 3-2 searchDefendantByEmail) ───────
+export async function searchDefendantByEmail(email: string): Promise<DefendantProfile | null> {
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('id, nickname, email')
+    .eq('email', email.trim())
+    .maybeSingle();
+  if (error) throw error;
+  return (profile as DefendantProfile) ?? null;
+}
 
 export interface CreateTrialInput {
   title: string;
@@ -26,78 +27,52 @@ export interface CreateTrialInput {
   optionA: string;
   optionB: string;
   stake: number;
+  defendantId: string;
   photoUris?: string[] | null;
   votingDays?: number;
 }
 
 // ── 쓰기: 재판 생성 (rpc create_trial) ─────────────────────────────
+// 가이드 3-2 시그니처 그대로: p_title/p_story/p_option_a/p_option_b/p_stake/
+// p_defendant_id 6개만 전달한다. photoUris/votingDays는 이 RPC가 아직
+// 받지 않는 값이라(가이드에 없음) 여기서 보내지 않는다 — PostgREST는 함수
+// 파라미터가 정확히 일치하지 않으면 호출 자체가 실패한다.
 export async function createTrial(input: CreateTrialInput): Promise<number> {
-  if (DEMO_MODE) {
-    return demoCreateTrial({
-      title: input.title,
-      story: input.story,
-      stake: input.stake,
-      photoUris: input.photoUris ?? null,
-      votingDays: input.votingDays,
-    });
-  }
-  // NOTE: votingDays는 실제 create_trial RPC 시그니처가 확정되면 p_voting_days
-  // 파라미터로 함께 전달해야 한다. 현재는 백엔드 스키마 미확인으로 보류.
   const { data: trialId, error } = await supabase.rpc('create_trial', {
     p_title: input.title,
     p_story: input.story,
     p_option_a: input.optionA,
     p_option_b: input.optionB,
     p_stake: input.stake,
+    p_defendant_id: input.defendantId,
   });
   if (error) throw error;
   return trialId as number;
 }
 
-// ── 쓰기: 초대 수락/거절 (rpc respond_to_trial) ─────────────────────
-export async function respondToTrial(token: string, accept: boolean) {
-  if (DEMO_MODE) {
-    demoRespondToTrial(token, accept);
-    return;
-  }
+// ── 쓰기: 재판 요청 수락/거절 (rpc respond_to_trial) ─────────────────
+export async function respondToTrial(trialId: number, accept: boolean) {
   const { error } = await supabase.rpc('respond_to_trial', {
-    p_token: token,
+    p_trial_id: trialId,
     p_accept: accept,
   });
   if (error) throw error;
 }
 
-// ── 읽기: 초대 토큰 조회 → 공유 링크 생성 ─────────────────────────
-export async function getInviteToken(trialId: number): Promise<string | null> {
-  if (DEMO_MODE) {
-    return demoState.trials.find((t) => t.id === trialId)?.invite_token ?? null;
-  }
-  const { data, error } = await supabase
-    .from('trials')
-    .select('invite_token')
-    .eq('id', trialId)
-    .single();
-  if (error) throw error;
-  return (data?.invite_token as string) ?? null;
-}
-
-export function buildInviteUrl(inviteToken: string): string {
-  return `pansa://invite/${inviteToken}`;
-}
-
-// ── 읽기: 재판 목록 (상태 필터) ────────────────────────────────────
-export async function listTrials(status?: TrialStatus): Promise<Trial[]> {
-  if (DEMO_MODE) {
-    const list = demoState.trials.filter(
-      (t) => !t.deleted && (!status || t.status === status)
-    );
-    return [...list];
-  }
+// ── 읽기: 재판 목록 (상태 필터, page/pageSize 지정 시에만 페이지네이션 적용) ──
+// (가이드 3-7: 목록이 길어질 화면에서는 page를 넘겨 10개씩 끊어 불러올 수 있다.
+//  TrialListScreen처럼 검색/정렬을 위해 전체 목록이 필요한 화면은 생략하면 된다.)
+export async function listTrials(
+  status?: TrialStatus,
+  page?: number,
+  pageSize = 10
+): Promise<Trial[]> {
   let query = supabase
     .from('trials')
     .select('*')
     .order('created_at', { ascending: false });
   if (status) query = query.eq('status', status);
+  if (page != null) query = query.range(page * pageSize, page * pageSize + pageSize - 1);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Trial[];
@@ -105,10 +80,6 @@ export async function listTrials(status?: TrialStatus): Promise<Trial[]> {
 
 // ── 쓰기: 조회수 +1 (상세화면 진입 시) ──────────────────────────────
 export async function incrementTrialView(id: number): Promise<void> {
-  if (DEMO_MODE) {
-    demoIncrementView(id);
-    return;
-  }
   // NOTE: 원자적 증가를 위한 RPC(increment_trial_view 등)가 아직 확정되지 않아,
   // 우선 읽고-더하기로 처리한다. 백엔드 확정되면 RPC 호출로 교체 필요.
   const { data, error } = await supabase
@@ -127,11 +98,6 @@ export async function incrementTrialView(id: number): Promise<void> {
 
 // ── 읽기: 재판 단건 ───────────────────────────────────────────────
 export async function getTrial(id: number): Promise<Trial> {
-  if (DEMO_MODE) {
-    const t = demoState.trials.find((x) => x.id === id);
-    if (!t) throw new Error('재판을 찾을 수 없어요');
-    return { ...t };
-  }
   const { data, error } = await supabase
     .from('trials')
     .select('*')
@@ -141,26 +107,11 @@ export async function getTrial(id: number): Promise<Trial> {
   return data as Trial;
 }
 
-// ── 읽기: 토큰으로 재판 단건 (초대 화면 진입) ─────────────────────
-export async function getTrialByToken(token: string): Promise<Trial | null> {
-  if (DEMO_MODE) {
-    return demoState.trials.find((t) => t.invite_token === token) ?? null;
-  }
-  const { data, error } = await supabase
-    .from('trials')
-    .select('*')
-    .eq('invite_token', token)
-    .maybeSingle();
-  if (error) throw error;
-  return (data as Trial) ?? null;
-}
-
-// ── 상태 실시간 구독 (가이드 4장, 선택) ───────────────────────────
+// ── 상태 실시간 구독 (가이드 3-6, 반드시 구독 해제) ─────────────────
 export function subscribeTrial(
   id: number,
   onChange: (trial: Trial) => void
 ): () => void {
-  if (DEMO_MODE) return () => {}; // 데모: 구독 없음
   const channel = supabase
     .channel(`trial-${id}`)
     .on(
@@ -174,25 +125,24 @@ export function subscribeTrial(
   };
 }
 
-
-// ── 데모 전용: 재판 강제 종료 (과반 판정) ─────────────────────────
-// 실제 백엔드에서는 서버가 마감 시간에 자동 정산하므로 이 함수는 데모 시연용이다.
-export async function endTrialDemo(trialId: number): Promise<'A' | 'B' | 'FAILED'> {
-  if (DEMO_MODE) return demoEndTrial(trialId);
-  throw new Error('재판 종료는 서버가 자동 처리합니다');
-}
-
-// ── 읽기: 내가 작성한 재판 (마이페이지) ───────────────────────────
+// ── 읽기: 내가 작성한 재판 (마이페이지 '내 사연 내역') ─────────────
 export async function listMyTrials(userId: string): Promise<Trial[]> {
-  if (DEMO_MODE) {
-    const { demoMyTrials } = await import('@/lib/demo');
-    return demoMyTrials();
-  }
-  // 실제: plaintiff_id 컬럼이 있으면 그것으로 필터 (백엔드 스키마 확인 필요)
   const { data, error } = await supabase
     .from('trials')
     .select('*')
     .eq('plaintiff_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Trial[];
+}
+
+// ── 읽기: 내가 피고로 지정된 PENDING 재판 (홈 화면 재판요청 배너용) ──
+export async function listPendingTrialsForDefendant(userId: string): Promise<Trial[]> {
+  const { data, error } = await supabase
+    .from('trials')
+    .select('*')
+    .eq('defendant_id', userId)
+    .eq('status', 'PENDING')
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as Trial[];

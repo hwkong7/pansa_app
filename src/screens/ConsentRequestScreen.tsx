@@ -1,9 +1,10 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
-import { getTrialByToken, respondToTrial } from '@/api/trials';
+import { getTrial, respondToTrial } from '@/api/trials';
 import { BottomBar, Button, Card, Countdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
+import { useAuth } from '@/context/AuthContext';
 import type { Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, spacing } from '@/theme';
@@ -11,25 +12,28 @@ import { colors, font, spacing } from '@/theme';
 type Props = NativeStackScreenProps<AppStackParamList, 'ConsentRequest'>;
 
 export default function ConsentRequestScreen({ navigation, route }: Props) {
-  const { token } = route.params;
+  const { trialId } = route.params;
+  const { user } = useAuth();
   const [trial, setTrial] = useState<Trial | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<'accept' | 'reject' | null>(null);
 
   useEffect(() => {
-    getTrialByToken(token)
+    getTrial(trialId)
       .then(setTrial)
       .catch((e) => Alert.alert('오류', e?.message ?? '사연을 불러오지 못했어요'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [trialId]);
 
   const respond = async (accept: boolean) => {
     setSubmitting(accept ? 'accept' : 'reject');
     try {
-      // 가이드 3-2 ③ respond_to_trial. 수락 시 원고와 동일 금액이 차감됨(잔액 부족 시 에러)
-      await respondToTrial(token, accept);
+      // 가이드 3-2 respond_to_trial. 수락 시 원고와 동일 금액이 차감됨(잔액 부족 시 에러)
+      await respondToTrial(trialId, accept);
       if (accept && trial) {
-        navigation.replace('TrialDetail', { id: trial.id });
+        Alert.alert('재판 성립', '재판이 성립되었습니다.', [
+          { text: '확인', onPress: () => navigation.replace('TrialDetail', { id: trial.id }) },
+        ]);
       } else if (trial) {
         // 거절 → 재판 취소 결과 화면 (웹/폰 모두 확실히 동작)
         navigation.replace('TrialCanceled', { trialId: trial.id });
@@ -58,7 +62,17 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text style={styles.notFound}>유효하지 않거나 만료된 초대 링크예요.</Text>
+          <Text style={styles.notFound}>존재하지 않는 재판이에요.</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (trial.defendant_id && user && trial.defendant_id !== user.id) {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <Text style={styles.notFound}>이 재판에 접근할 권한이 없어요.</Text>
         </View>
       </Screen>
     );

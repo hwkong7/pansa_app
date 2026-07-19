@@ -5,7 +5,6 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import { getMyCoin } from '@/api/profile';
 import { Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { DEMO_MODE, demoState } from '@/lib/demo';
 import { useAuth } from '@/context/AuthContext';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
@@ -51,12 +50,13 @@ export default function RewardShopScreen({ navigation }: Props) {
       Alert.alert('코인 부족', `${r.name} 교환에는 ${r.cost.toLocaleString()}P가 필요해요.`);
       return;
     }
+    // NOTE: 리워드샵은 안내문서/요청사항에 없는 기능이라 백엔드 RPC가 아직 없다.
+    // 실제 코인 차감 없이 구매내역 UI만 갱신한다 (백엔드 연동은 이번 범위 밖).
     Alert.alert('교환하기', `${r.name}\n${r.cost.toLocaleString()}P를 사용할까요?`, [
       { text: '취소', style: 'cancel' },
       {
         text: '교환',
         onPress: () => {
-          if (DEMO_MODE) demoState.coin = Math.max(0, demoState.coin - r.cost);
           setPurchases((p) => [...p, r.id]);
           refreshCoin();
           Alert.alert('교환 완료', '구매내역에서 확인할 수 있어요.');

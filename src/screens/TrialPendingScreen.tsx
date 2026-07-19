@@ -1,10 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { buildInviteUrl, getTrial, subscribeTrial } from '@/api/trials';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { getTrial, subscribeTrial } from '@/api/trials';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
-import { Button, Card, Screen } from '@/components/ui';
+import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { getTrialPhotos, type Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
@@ -47,7 +46,9 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!trial) return;
     if (trial.status === 'OPEN') {
-      navigation.replace('TrialDetail', { id: trial.id });
+      Alert.alert('재판 성립', '재판이 성립되었습니다.', [
+        { text: '확인', onPress: () => navigation.replace('TrialDetail', { id: trial.id }) },
+      ]);
     } else if (trial.status === 'REJECTED') {
       navigation.replace('TrialCanceled', { trialId: trial.id });
     }
@@ -65,7 +66,6 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
 
   const category = trial.title.match(/^\[(.+?)\]/)?.[1];
   const photos = getTrialPhotos(trial);
-  const inviteUrl = trial.invite_token ? buildInviteUrl(trial.invite_token) : null;
 
   return (
     <Screen>
@@ -110,24 +110,6 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
           <Text style={styles.pendingSub}>
             24시간 내 응답이 없으면 자동 취소되고 판돈은 환불돼요.
           </Text>
-          {inviteUrl && (
-            <>
-              <Text style={styles.inviteUrl} numberOfLines={1}>
-                {inviteUrl}
-              </Text>
-              <Button
-                title="동의요청 링크 복사"
-                variant="outline"
-                style={{ marginTop: spacing.md }}
-                onPress={async () => {
-                  await Clipboard.setStringAsync(inviteUrl);
-                  if (trial.invite_token) {
-                    navigation.navigate('ConsentRequest', { token: trial.invite_token });
-                  }
-                }}
-              />
-            </>
-          )}
         </Card>
       </ScrollView>
 
@@ -160,5 +142,4 @@ const styles = StyleSheet.create({
   pendingCard: { alignItems: 'center', paddingVertical: spacing.xl },
   pendingTitle: { fontSize: font.h3, fontWeight: '800', color: colors.text, marginTop: spacing.md },
   pendingSub: { color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm, fontSize: font.small },
-  inviteUrl: { color: colors.primary, marginTop: spacing.lg, fontSize: font.small },
 });

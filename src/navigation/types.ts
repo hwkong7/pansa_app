@@ -18,11 +18,12 @@ export type AppStackParamList = {
   CreateTrial: undefined;
   TrialDetail: { id: number };
   TrialPending: { id: number };
-  ConsentRequest: { token: string };
+  ConsentRequest: { trialId: number };
   TrialCanceled: { trialId: number };
   VerdictFailed: { trialId: number; totalVotes?: number };
   Verdict: { id: number };
   RewardShop: undefined;
   Activity: { mode: 'myTrials' | 'myComments' | 'myBets' | 'wallet' };
   ProfileSettings: undefined;
+  Notifications: undefined;
 };

@@ -1,4 +1,4 @@
-import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import ConsentRequestScreen from '@/screens/ConsentRequestScreen';
 import CreateTrialScreen from '@/screens/CreateTrialScreen';
 import LoginScreen from '@/screens/LoginScreen';
+import NotificationsScreen from '@/screens/NotificationsScreen';
 import OnboardingScreen from '@/screens/OnboardingScreen';
 import ProfileSettingsScreen from '@/screens/ProfileSettingsScreen';
 import {
@@ -25,15 +26,10 @@ import type { AppStackParamList, AuthStackParamList } from './types';
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 
-// 딥링크: pansa://invite/<token> → 동의요청 화면
-const linking: LinkingOptions<AppStackParamList> = {
-  prefixes: ['pansa://'],
-  config: {
-    screens: {
-      ConsentRequest: 'invite/:token',
-    },
-  },
-};
+// 딥링크(pansa://invite/<token>)는 더 이상 사용하지 않는다 — 재판 요청은
+// 이제 상대방 이메일로 특정 유저를 지정해 알림함으로 전달된다.
+// 카카오/네이버 OAuth 콜백(pansa://auth-callback)은 expo-web-browser의
+// openAuthSessionAsync가 자체적으로 가로채므로 별도 linking 설정이 필요 없다.
 
 function AuthFlow() {
   return (
@@ -59,6 +55,7 @@ function AppFlow() {
       <AppStack.Screen name="RewardShop" component={RewardShopScreen} />
       <AppStack.Screen name="Activity" component={ActivityScreen} />
       <AppStack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
+      <AppStack.Screen name="Notifications" component={NotificationsScreen} />
     </AppStack.Navigator>
   );
 }
@@ -75,7 +72,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer>
       {session ? <AppFlow /> : <AuthFlow />}
     </NavigationContainer>
   );
