@@ -31,8 +31,8 @@
       "bundler": "metro"
     },
     "extra": {
-      "supabaseUrl": "https://obtnbductdphderzkftf.supabase.co",
-      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr",
+      "supabaseUrl": "https://khablhmfdmiqhruhcqeg.supabase.co",
+      "supabaseAnonKey": "sb_publishable_IF9-e1P23-NRXCTRXf4Nhg_gj3gVaFg",
       "eas": {
         "projectId": "827eef4a-6856-4cce-b95c-1500607c4387"
       }
@@ -49,3 +49,4 @@
     "owner": "iamdh0100"
   }
 }
+

@@ -58,7 +58,7 @@ async function signInWithProvider(provider: 'kakao' | 'naver') {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: provider as import('@supabase/supabase-js').Provider,
     options: {
-      redirectTo: REDIRECT_URL,
+      redirectTo: 'pansa://auth-callback',
       skipBrowserRedirect: true,
     },
   });

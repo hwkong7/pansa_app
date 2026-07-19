@@ -14,9 +14,9 @@ import Constants from 'expo-constants';
 const extra = Constants.expoConfig?.extra ?? {};
 
 const supabaseUrl: string =
-  extra.supabaseUrl ?? 'https://obtnbductdphderzkftf.supabase.co';
+  extra.supabaseUrl ?? 'https://khablhmfdmiqhruhcqeg.supabase.co';
 const supabaseAnonKey: string =
-  extra.supabaseAnonKey ?? 'sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr';
+  extra.supabaseAnonKey ?? 'sb_publishable_IF9-e1P23-NRXCTRXf4Nhg_gj3gVaFg';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
