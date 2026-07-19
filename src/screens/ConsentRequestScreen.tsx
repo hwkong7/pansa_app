@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getTrial, respondToTrial } from '@/api/trials';
 import { BottomBar, Button, Card, Countdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -22,6 +22,17 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
       .catch((e: any) => Alert.alert('오류', e?.message ?? '사연을 불러오지 못했어요'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // 이미 응답이 끝난 재판(수락/거절/그 이후 상태)이면 동의 화면 대신 결과 화면으로 보낸다.
+  useEffect(() => {
+    if (!trial) return;
+    if (trial.status === 'PENDING') return;
+    if (trial.status === 'REJECTED') {
+      navigation.replace('TrialCanceled', { trialId: trial.id });
+    } else {
+      navigation.replace('TrialDetail', { id: trial.id });
+    }
+  }, [trial?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const respond = async (accept: boolean) => {
     setSubmitting(accept ? 'accept' : 'reject');
@@ -64,9 +75,21 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
     );
   }
 
+  // 응답이 끝난 재판은 위 useEffect가 다른 화면으로 보내는 동안, 잠깐 로딩만 보여준다
+  // (동의/거절 버튼이 다시 뜨는 걸 막기 위함).
+  if (trial.status !== 'PENDING') {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
-      <View style={styles.container}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.container}>
         <Text style={styles.topTitle}>동의 요청</Text>
 
         <View style={styles.hero}>
@@ -90,7 +113,7 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
             <Countdown closesAt={trial.closes_at} />
           </Card>
         )}
-      </View>
+      </ScrollView>
 
       <BottomBar style={{ flexDirection: 'row', gap: spacing.md }}>
         <Button
@@ -114,7 +137,7 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   notFound: { color: colors.textMuted, textAlign: 'center' },
-  container: { flex: 1, padding: spacing.lg },
+  container: { flexGrow: 1, padding: spacing.lg },
   topTitle: { fontSize: font.h3, fontWeight: '700', color: colors.text, textAlign: 'center' },
   hero: { alignItems: 'center', marginTop: spacing.xl },
   icon: { fontSize: 40 },
