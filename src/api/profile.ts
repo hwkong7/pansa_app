@@ -7,6 +7,7 @@ import {
   demoUpdateNickname,
   demoUpdatePhoto,
 } from '@/lib/demo';
+import { uploadImage } from '@/lib/upload';
 import type { CoinLedgerEntry, Profile } from '@/lib/types';
 
 /**
@@ -39,17 +40,18 @@ export async function updateMyNickname(userId: string, nickname: string): Promis
   if (error) throw error;
 }
 
-export async function updateMyPhoto(userId: string, photoUri: string): Promise<void> {
+export async function updateMyPhoto(userId: string, localPhotoUri: string): Promise<void> {
   if (DEMO_MODE) {
-    demoUpdatePhoto(photoUri);
+    demoUpdatePhoto(localPhotoUri);
     return;
   }
-  // NOTE: 실제 연동 시 스토리지 업로드 후 반환된 공개 URL을 저장해야 하나,
-  // 스토리지 버킷/업로드 규칙이 아직 확정되지 않아 우선 photoUri를 그대로 저장한다.
-  // (profiles 직접 update 자체는 RLS로 안전하다고 확인됨)
+  // Storage("media" 버킷)에 업로드 후 공개 URL을 저장한다. 매번 같은 경로(avatar)에
+  // upsert하므로, 브라우저/기기 캐시가 갱신 전 이미지를 계속 보여주지 않도록
+  // 캐시버스터 쿼리스트링을 붙인다.
+  const publicUrl = await uploadImage(userId, localPhotoUri, 'avatar');
   const { error } = await supabase
     .from('profiles')
-    .update({ photo_uri: photoUri })
+    .update({ photo_uri: `${publicUrl}?t=${Date.now()}` })
     .eq('id', userId);
   if (error) throw error;
 }

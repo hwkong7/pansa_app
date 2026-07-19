@@ -175,7 +175,7 @@ export default function HomeScreen({ navigation }: Props) {
               {stripCategory(hottest.title)}
             </Text>
             <Text style={styles.widgetMeta}>
-              진행중 · 조회 {hottest.view_count ?? 0} · 댓글 {commentCount(hottest.id)}
+              진행중 · 조회 {hottest.view_count ?? 0} · 댓글 {hottest.comment_count ?? 0}
             </Text>
           </Card>
         )}
@@ -203,7 +203,7 @@ export default function HomeScreen({ navigation }: Props) {
               </Text>
               <Text style={styles.widgetMeta}>
                 참여 {best.total_votes ?? 0} · 베팅 {(best.total_bet ?? 0).toLocaleString()}P · 조회{' '}
-                {best.view_count ?? 0} · 댓글 {commentCount(best.id)}
+                {best.view_count ?? 0} · 댓글 {best.comment_count ?? 0}
               </Text>
             </Pressable>
           </Card>
@@ -224,11 +224,6 @@ export default function HomeScreen({ navigation }: Props) {
 
 function stripCategory(title: string) {
   return title.replace(/^\[.+?\]\s*/, '');
-}
-
-// 데모: 댓글은 세션 동안만 저장되는 목업이라 DEMO_MODE에서만 집계
-function commentCount(trialId: number) {
-  return DEMO_MODE ? demoGetComments(trialId).length : 0;
 }
 
 const styles = StyleSheet.create({
