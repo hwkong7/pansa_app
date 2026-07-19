@@ -193,14 +193,12 @@ function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => voi
     setSheetOpen(true);
   };
 
+  // 성공/실패 알림과 "처리 중이에요 → 베팅완료" 상태 전환은 BetSheet가 직접
+  // 관리한다(연타로 인한 코인 이중 차감 방지 UI). 여기서는 실패 시 그대로
+  // 에러를 던져서 BetSheet가 알 수 있게 한다.
   const confirmBet = async (amount: number) => {
-    try {
-      await placeBet(trial.id, choice!, amount);
-      setSheetOpen(false);
-      onBetPlaced();
-    } catch (e: any) {
-      Alert.alert('오류', e?.message ?? '베팅에 실패했어요');
-    }
+    await placeBet(trial.id, choice!, amount);
+    onBetPlaced();
   };
 
   return (

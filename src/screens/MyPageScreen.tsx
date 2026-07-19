@@ -2,7 +2,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { signOut } from '@/api/auth';
 import { listMyBets } from '@/api/bets';
 import { getMyProfile } from '@/api/profile';
@@ -24,6 +24,9 @@ const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN
 // 데모: 승률은 정산 이력 집계가 아직 없어 더미 값으로 표시
 const DUMMY_WIN_RATE = 68;
 
+// TODO: 실제 고객센터 이메일 주소로 교체
+const SUPPORT_EMAIL = 'support@pansa.app';
+
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -44,6 +47,20 @@ export default function MyPageScreen({ navigation }: Props) {
     profile?.nickname ?? (user?.user_metadata?.nickname as string) ?? '익명의판사';
   const coin = profile?.coin ?? 0;
   const caseCount = myTrialsCount + myBetsCount;
+
+  const onContactSupport = async () => {
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[PANSA] 문의하기')}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+        return;
+      }
+    } catch {
+      // ignore, fall through to fallback alert
+    }
+    Alert.alert('고객센터', `메일 앱을 열 수 없어요.\n${SUPPORT_EMAIL} 로 문의해주세요.`);
+  };
 
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
@@ -116,7 +133,7 @@ export default function MyPageScreen({ navigation }: Props) {
           <Text style={styles.menuText}>알림 설정</Text>
           <Switch value={notif} onValueChange={setNotif} trackColor={{ true: colors.primary }} />
         </Card>
-        <Card bg={colors.white} style={styles.menu} onPress={() => Alert.alert('고객센터', '준비 중이에요.')}>
+        <Card bg={colors.white} style={styles.menu} onPress={onContactSupport}>
           <Text style={styles.menuText}>고객센터</Text>
           <Icon name="chevron-right" size={18} color={colors.textMuted} />
         </Card>
