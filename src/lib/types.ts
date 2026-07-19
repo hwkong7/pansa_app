@@ -39,6 +39,7 @@ export interface Trial {
   photo_uris?: string[] | null; // 첨부 사진 여러 장 (데모: 로컬 uri 배열)
   deleted?: boolean; // 성립 실패로 삭제 처리된 재판 (목록에서 제외)
   view_count?: number | null; // 조회수 (상세화면 진입 시 +1)
+  comment_count?: number | null; // 댓글 수 (add_comment 시 +1, 비정규화 카운터)
   voting_days?: number | null; // 작성 시 선택한 투표 기간(일). 피고 수락 시점부터 적용
 }
 

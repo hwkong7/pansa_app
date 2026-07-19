@@ -10,6 +10,7 @@ import {
 } from '@/lib/demo';
 import { getSampleTrial, isSampleTrialId, SAMPLE_TRIALS } from '@/lib/sampleTrials';
 import type { Trial, TrialStatus } from '@/lib/types';
+import { uploadImage } from '@/lib/upload';
 
 /**
  * 재판 API.
@@ -32,7 +33,7 @@ export interface CreateTrialInput {
   stake: number;
   defendantId: string; // 상대(피고) 검색으로 알아낸 UUID (가이드 3-2)
   photoUris?: string[] | null;
-  votingDays?: number; // 실제 create_trial RPC엔 파라미터가 없어 데모 전용으로만 씀
+  votingDays?: number; // 피고 수락 시점부터 적용되는 투표 기간(일). create_trial의 p_voting_days로 전달됨
 }
 
 // ── 읽기: 상대방 이메일로 유저 검색 (재판 생성 전 피고 지정용) ───────
@@ -60,6 +61,18 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
       votingDays: input.votingDays,
     });
   }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('로그인이 필요합니다');
+
+  // 로컬 기기 사진(file://...)은 서버가 못 읽으므로, rpc 호출 전에 Storage로 먼저
+  // 올려서 공개 URL로 바꾼다.
+  const localUris = input.photoUris ?? [];
+  const photoUrls = await Promise.all(
+    localUris.map((uri, idx) => uploadImage(user.id, uri, `trial-${Date.now()}-${idx}`))
+  );
+
   const { data: trialId, error } = await supabase.rpc('create_trial', {
     p_title: input.title,
     p_story: input.story,
@@ -67,6 +80,8 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
     p_option_b: input.optionB,
     p_stake: input.stake,
     p_defendant_id: input.defendantId,
+    p_voting_days: input.votingDays ?? 1,
+    p_photo_uris: photoUrls.length > 0 ? photoUrls : null,
   });
   if (error) throw error;
   return trialId as number;
@@ -123,27 +138,15 @@ export async function listIncomingRequests(userId: string): Promise<Trial[]> {
   return (data ?? []) as Trial[];
 }
 
-// ── 쓰기: 조회수 +1 (상세화면 진입 시) ──────────────────────────────
+// ── 쓰기: 조회수 +1 (상세화면 진입 시, rpc increment_trial_view) ──────
 export async function incrementTrialView(id: number): Promise<void> {
   if (isSampleTrialId(id)) return; // 샘플은 조회수 갱신 안 함
   if (DEMO_MODE) {
     demoIncrementView(id);
     return;
   }
-  // NOTE: 원자적 증가를 위한 RPC(increment_trial_view 등)가 아직 확정되지 않아,
-  // 우선 읽고-더하기로 처리한다. 백엔드 확정되면 RPC 호출로 교체 필요.
-  const { data, error } = await supabase
-    .from('trials')
-    .select('view_count')
-    .eq('id', id)
-    .single();
+  const { error } = await supabase.rpc('increment_trial_view', { p_trial_id: id });
   if (error) throw error;
-  const next = ((data?.view_count as number) ?? 0) + 1;
-  const { error: updateError } = await supabase
-    .from('trials')
-    .update({ view_count: next })
-    .eq('id', id);
-  if (updateError) throw updateError;
 }
 
 // ── 읽기: 재판 단건 ───────────────────────────────────────────────
@@ -201,3 +204,33 @@ export async function listMyTrials(userId: string): Promise<Trial[]> {
   if (error) throw error;
   return (data ?? []) as Trial[];
 }
+
+// ── 읽기: 내 승률 (마이페이지, 정산된 재판의 원고/피고 승패 집계) ──────
+export interface MyTrialStats {
+  settledCount: number;
+  wins: number;
+  winRate: number | null; // 무승부 제외 결정된 재판이 하나도 없으면 null
+}
+
+export async function getMyTrialStats(userId: string): Promise<MyTrialStats> {
+  if (DEMO_MODE) return { settledCount: 0, wins: 0, winRate: 68 };
+  const { data, error } = await supabase
+    .from('trials')
+    .select('plaintiff_id, defendant_id, winner')
+    .eq('status', 'SETTLED')
+    .or(`plaintiff_id.eq.${userId},defendant_id.eq.${userId}`);
+  if (error) throw error;
+  const rows = data ?? [];
+  const decided = rows.filter((t) => t.winner === 'A' || t.winner === 'B');
+  const wins = decided.filter(
+    (t) =>
+      (t.winner === 'A' && t.plaintiff_id === userId) ||
+      (t.winner === 'B' && t.defendant_id === userId)
+  ).length;
+  return {
+    settledCount: rows.length,
+    wins,
+    winRate: decided.length > 0 ? Math.round((wins / decided.length) * 100) : null,
+  };
+}
+
