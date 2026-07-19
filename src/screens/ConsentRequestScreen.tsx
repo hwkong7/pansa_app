@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
-import { getTrialByToken, respondToTrial } from '@/api/trials';
+import { getTrial, respondToTrial } from '@/api/trials';
 import { BottomBar, Button, Card, Countdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import type { Trial } from '@/lib/types';
@@ -11,23 +11,23 @@ import { colors, font, spacing } from '@/theme';
 type Props = NativeStackScreenProps<AppStackParamList, 'ConsentRequest'>;
 
 export default function ConsentRequestScreen({ navigation, route }: Props) {
-  const { token } = route.params;
+  const { id } = route.params;
   const [trial, setTrial] = useState<Trial | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<'accept' | 'reject' | null>(null);
 
   useEffect(() => {
-    getTrialByToken(token)
+    getTrial(id)
       .then(setTrial)
-      .catch((e) => Alert.alert('오류', e?.message ?? '사연을 불러오지 못했어요'))
+      .catch((e: any) => Alert.alert('오류', e?.message ?? '사연을 불러오지 못했어요'))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [id]);
 
   const respond = async (accept: boolean) => {
     setSubmitting(accept ? 'accept' : 'reject');
     try {
       // 가이드 3-2 ③ respond_to_trial. 수락 시 원고와 동일 금액이 차감됨(잔액 부족 시 에러)
-      await respondToTrial(token, accept);
+      await respondToTrial(id, accept);
       if (accept && trial) {
         navigation.replace('TrialDetail', { id: trial.id });
       } else if (trial) {
@@ -58,7 +58,7 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
     return (
       <Screen>
         <View style={styles.center}>
-          <Text style={styles.notFound}>유효하지 않거나 만료된 초대 링크예요.</Text>
+          <Text style={styles.notFound}>재판 정보를 불러오지 못했어요.</Text>
         </View>
       </Screen>
     );

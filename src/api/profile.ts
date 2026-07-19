@@ -30,8 +30,8 @@ export async function updateMyNickname(userId: string, nickname: string): Promis
     demoUpdateNickname(nickname);
     return;
   }
-  // NOTE: 실제 백엔드 쓰기 규칙(가이드 3-3)상 RPC 사용이 원칙이나, 닉네임 변경용
-  // RPC가 아직 확정되지 않아 우선 profiles 테이블 직접 update로 처리한다.
+  // profiles 직접 update는 RLS(본인 id만 수정 가능)로 보호돼 있어 안전하다고
+  // 백엔드 팀원에게 확인됨 — RPC 없이 이대로 유지.
   const { error } = await supabase
     .from('profiles')
     .update({ nickname })
@@ -45,7 +45,8 @@ export async function updateMyPhoto(userId: string, photoUri: string): Promise<v
     return;
   }
   // NOTE: 실제 연동 시 스토리지 업로드 후 반환된 공개 URL을 저장해야 하나,
-  // 스토리지 버킷/업로드 규칙이 아직 확정되지 않아 우선 profiles 테이블 직접 update로 처리한다.
+  // 스토리지 버킷/업로드 규칙이 아직 확정되지 않아 우선 photoUri를 그대로 저장한다.
+  // (profiles 직접 update 자체는 RLS로 안전하다고 확인됨)
   const { error } = await supabase
     .from('profiles')
     .update({ photo_uri: photoUri })

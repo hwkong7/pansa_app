@@ -3,6 +3,7 @@ import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { unreadNotificationCount } from '@/api/notifications';
 import { listMyTrials, listTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -30,6 +31,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [openTrials, setOpenTrials] = useState<Trial[]>([]);
   const [settled, setSettled] = useState<Trial[]>([]);
   const [myPending, setMyPending] = useState<Trial[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [bestPeriod, setBestPeriod] = useState<BestPeriod>('day');
   const attendance = useAttendance();
 
@@ -44,6 +46,7 @@ export default function HomeScreen({ navigation }: Props) {
       if (user) {
         const mine = await listMyTrials(user.id);
         setMyPending(mine.filter((t) => t.status === 'PENDING'));
+        setUnreadCount(await unreadNotificationCount(user.id));
       }
     } catch {
       // 홈 위젯은 조용히 무시
@@ -97,7 +100,10 @@ export default function HomeScreen({ navigation }: Props) {
             안녕하세요,{'\n'}
             <Text style={styles.name}>{nickname}</Text>님
           </Text>
-          <Icon name="bell" size={24} color={colors.text} />
+          <Pressable onPress={() => navigation.navigate('Notifications')} hitSlop={10}>
+            <Icon name="bell" size={24} color={colors.text} />
+            {unreadCount > 0 && <View style={styles.unreadBadge} />}
+          </Pressable>
         </View>
 
         {/* 출석체크: 하루 1회, 누르면 채워지고 저장됨 */}
@@ -231,6 +237,15 @@ const styles = StyleSheet.create({
   },
   greeting: { fontSize: font.h2, color: colors.text, lineHeight: 30 },
   name: { fontWeight: '800' },
+  unreadBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
+  },
   attendance: {
     borderWidth: 1,
     borderColor: colors.border,

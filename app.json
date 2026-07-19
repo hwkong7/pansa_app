@@ -22,14 +22,20 @@
       "adaptiveIcon": {
         "backgroundColor": "#2F6BF6"
       },
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro"
     },
     "extra": {
       "supabaseUrl": "https://obtnbductdphderzkftf.supabase.co",
-      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr"
+      "supabaseAnonKey": "sb_publishable_hlJC4Ll1mcAbMmfFd4YPsg_UHE5yIdr",
+      "eas": {
+        "projectId": "827eef4a-6856-4cce-b95c-1500607c4387"
+      }
     },
     "plugins": [
       [
@@ -37,7 +43,9 @@
         {
           "photosPermission": "사연에 첨부할 이미지를 선택하기 위해 사진 접근 권한이 필요합니다."
         }
-      ]
-    ]
+      ],
+      "expo-web-browser"
+    ],
+    "owner": "iamdh0100"
   }
 }

@@ -54,10 +54,9 @@ export default function SignupScreen({ navigation }: Props) {
     }
     setLoading(true);
     try {
-      // 가이드 3-1: signUp(email, password).
-      // 닉네임은 프로필 테이블에 별도 저장이 필요하나, 테이블 쓰기는 RLS 로 막혀 있어
-      // (가이드 3-3) auth user_metadata 로 전달한다. 최종 저장 위치는 백엔드와 확인.
-      await signUp(email.trim(), password);
+      // 가이드 3-1: signUp(email, password). 닉네임은 auth user_metadata 로 전달하고,
+      // 백엔드 가입 트리거가 이 값을 profiles.nickname 에도 자동 복사해준다(백엔드 팀원 확인됨).
+      await signUp(email.trim(), password, nickname.trim());
       // 회원가입 성공 → onAuthStateChange 가 세션 감지하여 자동 진입
       // (이메일 인증 설정이 켜져 있으면 인증 후 로그인 필요)
     } catch (e: any) {

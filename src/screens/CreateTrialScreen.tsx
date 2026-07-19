@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
@@ -16,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { buildInviteUrl, createTrial, getInviteToken } from '@/api/trials';
+import { createTrial, searchDefendantByEmail } from '@/api/trials';
 import { BottomBar, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import type { AppStackParamList } from '@/navigation/types';
@@ -55,10 +54,35 @@ export default function CreateTrialScreen({ navigation }: Props) {
   const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // 크롭 직후, 확인 전 미리보기
   const [votingDays, setVotingDays] = useState<number>(DEFAULT_VOTING_DAYS);
   const [votingPickerOpen, setVotingPickerOpen] = useState(false);
+  const [defendantEmail, setDefendantEmail] = useState('');
+  const [defendant, setDefendant] = useState<{ id: string; nickname: string | null } | null>(null);
+  const [searchingDefendant, setSearchingDefendant] = useState(false);
 
   const stakeNum = parseInt(stake, 10);
   const canSubmit =
-    story.trim().length >= 5 && Number.isInteger(stakeNum) && stakeNum >= TRIAL_MIN_STAKE;
+    story.trim().length >= 5 &&
+    Number.isInteger(stakeNum) &&
+    stakeNum >= TRIAL_MIN_STAKE &&
+    defendant != null;
+
+  const onSearchDefendant = async () => {
+    if (!defendantEmail.trim()) return;
+    setSearchingDefendant(true);
+    try {
+      const found = await searchDefendantByEmail(defendantEmail.trim());
+      if (!found) {
+        setDefendant(null);
+        Alert.alert('검색 결과 없음', '존재하지 않는 사용자예요. 이메일을 다시 확인해주세요.');
+        return;
+      }
+      setDefendant({ id: found.id, nickname: found.nickname });
+    } catch (e: any) {
+      setDefendant(null);
+      Alert.alert('오류', e?.message ?? '검색에 실패했어요');
+    } finally {
+      setSearchingDefendant(false);
+    }
+  };
 
   const pickImage = async () => {
     if (photoUris.length >= MAX_PHOTOS) {
@@ -92,8 +116,11 @@ export default function CreateTrialScreen({ navigation }: Props) {
   };
 
   const onSubmit = async () => {
-    if (!canSubmit) {
-      Alert.alert('입력 확인', `사연(5자 이상)과 판돈(최소 ${TRIAL_MIN_STAKE}P 이상)을 확인해주세요.`);
+    if (!canSubmit || !defendant) {
+      Alert.alert(
+        '입력 확인',
+        `사연(5자 이상), 판돈(최소 ${TRIAL_MIN_STAKE}P 이상), 상대방 이메일 확인을 확인해주세요.`
+      );
       return;
     }
     setLoading(true);
@@ -108,37 +135,12 @@ export default function CreateTrialScreen({ navigation }: Props) {
         optionA: '원고 승',
         optionB: '피고 승',
         stake: stakeNum,
+        defendantId: defendant.id,
         votingDays,
         photoUris,
       });
 
-      // 생성 후 초대 토큰 조회 → 피고에게 공유할 링크 생성 (가이드 3-2 ②)
-      const token = await getInviteToken(trialId);
-      const inviteUrl = token ? buildInviteUrl(token) : null;
-
-      if (inviteUrl) {
-        Alert.alert(
-          '동의요청 링크가 생성됐어요',
-          '피고(상대방)에게 아래 링크를 공유하세요.\n\n' + inviteUrl,
-          [
-            {
-              text: '링크 복사',
-              onPress: async () => {
-                await Clipboard.setStringAsync(inviteUrl);
-                // 복사 후 피고 동의요청 화면(ConsentRequest)으로 이동
-                if (token) navigation.navigate('ConsentRequest', { token });
-                else navigation.navigate('TrialDetail', { id: trialId });
-              },
-            },
-            {
-              text: '확인',
-              onPress: () => navigation.navigate('TrialDetail', { id: trialId }),
-            },
-          ]
-        );
-      } else {
-        navigation.navigate('TrialDetail', { id: trialId });
-      }
+      navigation.navigate('TrialPending', { id: trialId });
     } catch (e: any) {
       // 서버 에러 메시지 그대로 (가이드 3-4)
       Alert.alert('오류', e?.message ?? '재판 생성에 실패했어요');
@@ -173,6 +175,44 @@ export default function CreateTrialScreen({ navigation }: Props) {
               </Pressable>
             ))}
           </View>
+
+          {/* 상대방(피고) 이메일 검색 — 실제 재판 생성엔 defendant_id가 필수라 반드시 필요한 입력 */}
+          <Card bg={FG.white} style={styles.rowCard}>
+            <Text style={styles.rowLabel}>상대방 이메일</Text>
+            <View style={styles.defendantRow}>
+              <TextInput
+                style={styles.defendantInput}
+                value={defendantEmail}
+                onChangeText={(t) => {
+                  setDefendantEmail(t);
+                  if (defendant) setDefendant(null);
+                }}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="email@example.com"
+                placeholderTextColor={FG.textFaint}
+              />
+              <Pressable
+                onPress={onSearchDefendant}
+                disabled={searchingDefendant || !defendantEmail.trim()}
+                style={[
+                  styles.defendantSearchBtn,
+                  (searchingDefendant || !defendantEmail.trim()) && { opacity: 0.5 },
+                ]}
+              >
+                {searchingDefendant ? (
+                  <ActivityIndicator size="small" color={FG.white} />
+                ) : (
+                  <Text style={styles.defendantSearchBtnText}>확인</Text>
+                )}
+              </Pressable>
+            </View>
+            {defendant && (
+              <Text style={styles.defendantFound}>
+                ✓ {defendant.nickname ?? '익명'}님을 찾았어요
+              </Text>
+            )}
+          </Card>
 
           <Card bg={FG.bg} style={styles.storyCard}>
             <TextInput
@@ -432,6 +472,26 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   stakeNotice: { color: FG.textMuted, fontSize: font.small, marginTop: spacing.sm, lineHeight: 18 },
+
+  defendantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  defendantInput: {
+    flex: 1,
+    borderBottomWidth: 1.5,
+    borderBottomColor: FG.border,
+    paddingVertical: spacing.xs,
+    fontSize: font.body,
+    color: FG.text,
+  },
+  defendantSearchBtn: {
+    height: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: FG.button,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  defendantSearchBtnText: { color: FG.white, fontWeight: '700', fontSize: font.small },
+  defendantFound: { color: FG.primary, fontSize: font.small, fontWeight: '600', marginTop: spacing.sm },
   flowNote: { color: FG.textMuted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 18 },
   bottom: { padding: spacing.lg },
 

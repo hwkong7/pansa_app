@@ -15,18 +15,13 @@ import {
   View,
 } from 'react-native';
 import { placeBet } from '@/api/bets';
-import { endTrialDemo, getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
+import { addComment, listComments } from '@/api/comments';
+import { getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
 import { BetSheet } from '@/components/BetSheet';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
-import { Button, Screen } from '@/components/ui';
+import { Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import {
-  DEMO_MODE,
-  demoAddComment,
-  demoGetComments,
-  type DemoComment,
-} from '@/lib/demo';
-import { getTrialPhotos, MIN_VOTES_TO_SETTLE, type Choice, type Trial } from '@/lib/types';
+import { getTrialPhotos, MIN_VOTES_TO_SETTLE, type Choice, type Comment, type Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
 
@@ -160,7 +155,7 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           )}
 
           {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
-          {DEMO_MODE && <CommentsSection trialId={trial.id} />}
+          <CommentsSection trialId={trial.id} />
         </ScrollView>
 
         <ImageViewerModal
@@ -178,7 +173,6 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
 function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => void }) {
   const [choice, setChoice] = useState<Choice | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [ending, setEnding] = useState(false);
 
   const total = (trial.votes_a ?? 0) + (trial.votes_b ?? 0);
   const progress = Math.min(total / MIN_VOTES_TO_SETTLE, 1);
@@ -189,7 +183,7 @@ function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => voi
 
   const openSheet = () => {
     if (full) {
-      Alert.alert('투표 마감', '투표 정원이 찼어요. 재판을 끝내주세요.');
+      Alert.alert('투표 마감', '투표 정원이 찼어요. 마감/정산은 서버가 자동으로 처리해요.');
       return;
     }
     if (!choice) {
@@ -206,19 +200,6 @@ function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => voi
       onBetPlaced();
     } catch (e: any) {
       Alert.alert('오류', e?.message ?? '베팅에 실패했어요');
-    }
-  };
-
-  // 재판 끝내기(데모): 과반 판정 → 상태 변경 후 새로고침 → 상위 effect가 결과화면 이동
-  const endTrial = async () => {
-    setEnding(true);
-    try {
-      // 과반 판정 후 상태 변경 → onBetPlaced()로 새로고침 → 상위 effect가 결과 화면으로 이동
-      await endTrialDemo(trial.id);
-      onBetPlaced();
-    } catch (e: any) {
-      Alert.alert('오류', e?.message ?? '재판을 끝내지 못했어요');
-      setEnding(false);
     }
   };
 
@@ -241,7 +222,7 @@ function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => voi
       <View style={styles.track}>
         <View style={[styles.fill, { width: `${progress * 100}%` }]} />
       </View>
-      {full && <Text style={styles.fullNote}>투표 정원이 찼어요. 아래에서 재판을 끝내주세요.</Text>}
+      {full && <Text style={styles.fullNote}>투표 정원이 찼어요. 마감/정산은 서버가 자동으로 처리해요.</Text>}
 
       {/* 블라인드 편 선택 */}
       <Text style={styles.blindNote}>블라인드 투표 · 결과는 마감 후 공개돼요</Text>
@@ -268,16 +249,9 @@ function OpenView({ trial, onBetPlaced }: { trial: Trial; onBetPlaced: () => voi
         </Text>
       </Pressable>
 
-      {/* 재판 끝내기 (데모) */}
-      <Button
-        title="재판 끝내기 (데모)"
-        variant={full ? 'primary' : 'outline'}
-        loading={ending}
-        style={{ marginTop: spacing.lg }}
-        onPress={endTrial}
-      />
       <Text style={styles.endNote}>
-        과반이면 원고/피고 승으로 확정, 과반이 아니거나 정원 미달이면 판결 성립 실패돼요.
+        마감/정산은 서버가 자동으로 처리해요. 과반이면 원고/피고 승으로 확정, 과반이 아니거나
+        정원 미달이면 판결 성립 실패돼요.
       </Text>
 
       <BetSheet
@@ -317,21 +291,33 @@ function ChoiceButton({
   );
 }
 
-// ── 댓글 섹션 (데모: 세션 동안만 저장) ────────────────────────────
+// ── 댓글 섹션 (당사자/관전자 구분 없이 로그인 유저 누구나 작성 가능) ──
 function CommentsSection({ trialId }: { trialId: number }) {
-  const [comments, setComments] = useState<DemoComment[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [text, setText] = useState('');
+  const [posting, setPosting] = useState(false);
 
-  useEffect(() => {
-    setComments(demoGetComments(trialId));
+  const load = useCallback(() => {
+    listComments(trialId).then(setComments).catch(() => {});
   }, [trialId]);
 
-  const add = () => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const add = async () => {
     const t = text.trim();
-    if (!t) return;
-    demoAddComment(trialId, t);
-    setComments(demoGetComments(trialId));
-    setText('');
+    if (!t || posting) return;
+    setPosting(true);
+    try {
+      await addComment(trialId, t);
+      setText('');
+      load();
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '댓글 등록에 실패했어요');
+    } finally {
+      setPosting(false);
+    }
   };
 
   return (
@@ -342,14 +328,14 @@ function CommentsSection({ trialId }: { trialId: number }) {
       {comments.map((c) => (
         <View key={c.id} style={styles.commentRow}>
           <View style={styles.commentAvatar}>
-            {c.photo_uri ? (
-              <Image source={{ uri: c.photo_uri }} style={styles.commentAvatarImg} />
+            {c.author?.photo_uri ? (
+              <Image source={{ uri: c.author.photo_uri }} style={styles.commentAvatarImg} />
             ) : (
               <Icon name="mypage" size={16} color={colors.primary} />
             )}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.commentNick}>{c.nickname}</Text>
+            <Text style={styles.commentNick}>{c.author?.nickname ?? '익명의판사'}</Text>
             <Text style={styles.commentText}>{c.text}</Text>
           </View>
         </View>
@@ -368,8 +354,9 @@ function CommentsSection({ trialId }: { trialId: number }) {
           placeholderTextColor={colors.textMuted}
           onSubmitEditing={add}
           returnKeyType="send"
+          editable={!posting}
         />
-        <Pressable onPress={add} style={styles.commentSend}>
+        <Pressable onPress={add} style={[styles.commentSend, posting && { opacity: 0.5 }]} disabled={posting}>
           <Text style={styles.commentSendText}>등록</Text>
         </Pressable>
       </View>

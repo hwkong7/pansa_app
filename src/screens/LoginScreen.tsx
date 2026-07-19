@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { signIn } from '@/api/auth';
+import { signIn, signInWithKakao, signInWithNaver } from '@/api/auth';
 import { Button, Screen } from '@/components/ui';
 import { KakaoIcon, NaverIcon } from '@/components/customIcons';
 import type { AuthStackParamList } from '@/navigation/types';
@@ -22,6 +22,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<'kakao' | 'naver' | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const onLogin = async () => {
@@ -35,6 +36,19 @@ export default function LoginScreen({ navigation }: Props) {
       setErrorMsg(e?.message ?? '로그인에 실패했어요');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onSocial = async (provider: 'kakao' | 'naver') => {
+    setErrorMsg(null);
+    setSocialLoading(provider);
+    try {
+      await (provider === 'kakao' ? signInWithKakao() : signInWithNaver());
+      // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 메인 진입
+    } catch (e: any) {
+      setErrorMsg(e?.message ?? '소셜 로그인에 실패했어요');
+    } finally {
+      setSocialLoading(null);
     }
   };
 
@@ -77,17 +91,23 @@ export default function LoginScreen({ navigation }: Props) {
             style={{ marginTop: spacing.lg }}
           />
 
-          {/* ⚠️ 디자인의 카카오/네이버 소셜 로그인은 백엔드 Provider 설정 후 연동 예정.
-              지금은 이메일/비밀번호 방식만 동작. */}
           <View style={styles.socialRow}>
-            <View style={[styles.social, { opacity: 0.6 }]}>
+            <Pressable
+              style={[styles.social, socialLoading === 'kakao' && { opacity: 0.6 }]}
+              onPress={() => onSocial('kakao')}
+              disabled={socialLoading !== null}
+            >
               <KakaoIcon size={32} />
-              <Text style={styles.socialText}>카카오{'\n'}(연동 예정)</Text>
-            </View>
-            <View style={[styles.social, { opacity: 0.6 }]}>
+              <Text style={styles.socialText}>카카오로 로그인</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.social, socialLoading === 'naver' && { opacity: 0.6 }]}
+              onPress={() => onSocial('naver')}
+              disabled={socialLoading !== null}
+            >
               <NaverIcon size={32} />
-              <Text style={styles.socialText}>네이버{'\n'}(연동 예정)</Text>
-            </View>
+              <Text style={styles.socialText}>네이버로 로그인</Text>
+            </Pressable>
           </View>
 
           <Pressable

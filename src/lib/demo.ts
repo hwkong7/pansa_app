@@ -5,30 +5,9 @@ import { MIN_VOTES_TO_SETTLE, type Choice, type CoinLedgerEntry, type Profile, t
  *  true  → 백엔드 없이 목업 데이터로 동작 (발표 시연용). 로그인은 형식만 검증하고 통과.
  *  false → 실제 Supabase 백엔드에 연결.
  */
-export const DEMO_MODE = true;
+export const DEMO_MODE = false;
 
 export const DEMO_USER = { id: 'demo-user', nickname: '익명의판사' };
-
-/* 데모 로그인 (백엔드 없이 통과) */
-let _signedIn = false;
-const _authListeners = new Set<() => void>();
-export const demoAuth = {
-  isSignedIn: () => _signedIn,
-  signIn: () => {
-    _signedIn = true;
-    _authListeners.forEach((l) => l());
-  },
-  signOut: () => {
-    _signedIn = false;
-    _authListeners.forEach((l) => l());
-  },
-  subscribe: (cb: () => void) => {
-    _authListeners.add(cb);
-    return () => {
-      _authListeners.delete(cb);
-    };
-  },
-};
 
 // 데모: 내가 작성한 재판(마이페이지 '내 사연 내역'용)
 export const DEMO_MY_TRIAL_IDS = [12345, 12347];
@@ -212,50 +191,6 @@ export function demoIncrementView(trialId: number) {
   if (t) t.view_count = (t.view_count ?? 0) + 1;
 }
 
-// 데모: 재판 종료 (과반 판정) → 'A' | 'B' | 'FAILED'
-export function demoEndTrial(trialId: number): Choice | 'FAILED' {
-  const t = demoState.trials.find((x) => x.id === trialId);
-  if (!t) return 'FAILED';
-  const a = t.votes_a ?? 0;
-  const b = t.votes_b ?? 0;
-  const total = a + b;
-
-  if (total < MIN_VOTES_TO_SETTLE || a === b) {
-    t.status = 'SETTLED';
-    t.winner = null;
-    t.deleted = true; // 홈/목록에서 삭제 처리
-    return 'FAILED';
-  }
-
-  const winner: Choice = a > b ? 'A' : 'B';
-  t.status = 'SETTLED';
-  t.winner = winner;
-
-  const my = demoState.myBets[trialId];
-  if (my) {
-    if (my.choice === winner) {
-      const payout = my.amount + Math.round(my.amount * 0.9);
-      my.payout = payout;
-      demoState.coin += payout;
-    } else {
-      my.payout = 0;
-    }
-  }
-  return winner;
-}
-
-// // 데모: 피고 수락/거절
-// export function demoRespondToTrial(token: string, accept: boolean) {
-//   const t = demoState.trials.find((x) => x.invite_token === token);
-//   if (!t) return;
-//   if (accept) {
-//     t.status = 'OPEN';
-//     t.closes_at = inDays(1);
-//   } else {
-//     t.status = 'REJECTED';
-//   }
-// }
-
 // 데모: 댓글
 export function demoGetComments(trialId: number): DemoComment[] {
   return demoState.comments[trialId] ?? [];
@@ -341,8 +276,8 @@ export function demoMyBets(): { trial: Trial; choice: Choice; amount: number; pa
 
 // 데모: 피고 수락/거절 → 상태 변경
 //  수락 → OPEN(투표 시작, closes_at 24시간 뒤) / 거절 → REJECTED
-export function demoRespondToTrial(token: string, accept: boolean) {
-  const t = demoState.trials.find((x) => x.invite_token === token);
+export function demoRespondToTrial(trialId: number, accept: boolean) {
+  const t = demoState.trials.find((x) => x.id === trialId);
   if (!t) return;
   if (accept) {
     t.status = 'OPEN';
@@ -350,4 +285,14 @@ export function demoRespondToTrial(token: string, accept: boolean) {
   } else {
     t.status = 'REJECTED';
   }
+}
+
+// 데모: 상대방 이메일 검색 (항상 더미 프로필 하나를 찾은 것처럼 동작)
+export function demoSearchDefendant(email: string): { id: string; nickname: string | null; email: string } {
+  return { id: 'demo-defendant', nickname: '익명의피고', email };
+}
+
+// 데모: 내가 피고로 지정된 PENDING 재판 목록 (홈 '받은 동의요청' 위젯용)
+export function demoIncomingRequests(): Trial[] {
+  return [];
 }

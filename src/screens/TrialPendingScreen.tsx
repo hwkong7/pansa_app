@@ -1,10 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { buildInviteUrl, getTrial, subscribeTrial } from '@/api/trials';
+import { getTrial, subscribeTrial } from '@/api/trials';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
-import { Button, Card, Screen } from '@/components/ui';
+import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { getTrialPhotos, type Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
@@ -65,7 +64,6 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
 
   const category = trial.title.match(/^\[(.+?)\]/)?.[1];
   const photos = getTrialPhotos(trial);
-  const inviteUrl = trial.invite_token ? buildInviteUrl(trial.invite_token) : null;
 
   return (
     <Screen>
@@ -110,24 +108,6 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
           <Text style={styles.pendingSub}>
             24시간 내 응답이 없으면 자동 취소되고 판돈은 환불돼요.
           </Text>
-          {inviteUrl && (
-            <>
-              <Text style={styles.inviteUrl} numberOfLines={1}>
-                {inviteUrl}
-              </Text>
-              <Button
-                title="동의요청 링크 복사"
-                variant="outline"
-                style={{ marginTop: spacing.md }}
-                onPress={async () => {
-                  await Clipboard.setStringAsync(inviteUrl);
-                  if (trial.invite_token) {
-                    navigation.navigate('ConsentRequest', { token: trial.invite_token });
-                  }
-                }}
-              />
-            </>
-          )}
         </Card>
       </ScrollView>
 

@@ -48,7 +48,18 @@ export default function MyPageScreen({ navigation }: Props) {
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
       { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => signOut() },
+      {
+        text: '로그아웃',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+            // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 로그인 화면 전환
+          } catch (e: any) {
+            Alert.alert('오류', e?.message ?? '로그아웃에 실패했어요');
+          }
+        },
+      },
     ]);
   };
 

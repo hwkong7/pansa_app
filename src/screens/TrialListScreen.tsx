@@ -11,10 +11,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { listTrials } from '@/api/trials';
+import { listIncomingRequests, listMyTrials, listTrials } from '@/api/trials';
 import { Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { TrialCard } from '@/components/TrialCard';
+import { useAuth } from '@/context/AuthContext';
 import type { Trial } from '@/lib/types';
 import type { AppStackParamList, TabParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
@@ -27,7 +28,10 @@ type Props = CompositeScreenProps<
 const CATEGORIES = ['전체', '연애', '학업', '가족', '친구', '기타'];
 
 export default function TrialListScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const [trials, setTrials] = useState<Trial[]>([]);
+  // 내가 피고로 지정된 PENDING 재판의 id 집합 — 카드 탭 시 ConsentRequest로 보낼지 판단용
+  const [incomingIds, setIncomingIds] = useState<Set<number>>(new Set());
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'latest' | 'views' | 'deadline'>('latest');
@@ -38,16 +42,21 @@ export default function TrialListScreen({ navigation }: Props) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      // 진행중(OPEN) + 대기중(PENDING) 재판 표시
-      const [open, pending] = await Promise.all([
+      // 공개 진행중(OPEN) 재판 + 나와 관련된 PENDING(내가 원고로 쓴 것 / 내가 피고로 받은 것)
+      const [open, myTrials, incoming] = await Promise.all([
         listTrials('OPEN'),
-        listTrials('PENDING'),
+        user ? listMyTrials(user.id) : Promise.resolve([]),
+        user ? listIncomingRequests(user.id) : Promise.resolve([]),
       ]);
-      setTrials([...open, ...pending]);
+      const myPending = myTrials.filter((t) => t.status === 'PENDING');
+      const merged = new Map<number, Trial>();
+      [...open, ...myPending, ...incoming].forEach((t) => merged.set(t.id, t));
+      setTrials(Array.from(merged.values()));
+      setIncomingIds(new Set(incoming.map((t) => t.id)));
     } catch (e: any) {
       setError(e?.message ?? '목록을 불러오지 못했어요');
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -172,7 +181,11 @@ export default function TrialListScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <TrialCard
             trial={item}
-            onPress={() => navigation.navigate('TrialDetail', { id: item.id })}
+            onPress={() =>
+              incomingIds.has(item.id)
+                ? navigation.navigate('ConsentRequest', { id: item.id })
+                : navigation.navigate('TrialDetail', { id: item.id })
+            }
           />
         )}
         ListEmptyComponent={
