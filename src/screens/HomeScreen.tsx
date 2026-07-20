@@ -3,13 +3,14 @@ import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { unreadNotificationCount } from '@/api/notifications';
+import { getMyProfile } from '@/api/profile';
 import { listMyTrials, listTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
 import { useAttendance } from '@/lib/attendance';
-import { DEMO_MODE, demoGetComments } from '@/lib/demo';
-import type { Trial } from '@/lib/types';
+import type { Profile, Trial } from '@/lib/types';
 import type { AppStackParamList, TabParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
 
@@ -30,6 +31,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [openTrials, setOpenTrials] = useState<Trial[]>([]);
   const [settled, setSettled] = useState<Trial[]>([]);
   const [myPending, setMyPending] = useState<Trial[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [bestPeriod, setBestPeriod] = useState<BestPeriod>('day');
   const attendance = useAttendance();
 
@@ -44,6 +47,8 @@ export default function HomeScreen({ navigation }: Props) {
       if (user) {
         const mine = await listMyTrials(user.id);
         setMyPending(mine.filter((t) => t.status === 'PENDING'));
+        setUnreadCount(await unreadNotificationCount(user.id));
+        setProfile(await getMyProfile(user.id));
       }
     } catch {
       // 홈 위젯은 조용히 무시
@@ -56,7 +61,8 @@ export default function HomeScreen({ navigation }: Props) {
     }, [load])
   );
 
-  const nickname = (user?.user_metadata?.nickname as string) ?? '익명의판사';
+  const nickname =
+    profile?.nickname ?? (user?.user_metadata?.nickname as string) ?? '익명의판사';
   const hottest = openTrials[0];
 
   // 베스트 판결: 선택 기간 내 정산된 재판 중 참여 투표수 → 베팅액 순으로 랭킹
@@ -97,7 +103,18 @@ export default function HomeScreen({ navigation }: Props) {
             안녕하세요,{'\n'}
             <Text style={styles.name}>{nickname}</Text>님
           </Text>
-          <Icon name="bell" size={24} color={colors.text} />
+          <View>
+            <Pressable onPress={() => navigation.navigate('Notifications')} hitSlop={10}>
+              <Icon name="bell" size={24} color={colors.text} />
+              {unreadCount > 0 && <View style={styles.unreadBadge} />}
+            </Pressable>
+            {unreadCount > 0 && (
+              <View style={styles.bellTooltip}>
+                <View style={styles.bellTooltipArrow} />
+                <Text style={styles.bellTooltipText}>읽지 않은 알림이 있습니다</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* 출석체크: 하루 1회, 누르면 채워지고 저장됨 */}
@@ -142,7 +159,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Card style={styles.widget}>
             <Text style={styles.widgetLabel}>피고인 동의 대기중</Text>
             <Text style={styles.widgetTitle} numberOfLines={1}>
-              {stripCategory(waitingTrial.title)}
+              {waitingTrial.title}
             </Text>
             <View style={styles.consentTrack}>
               <View style={[styles.consentFill, { width: `${waitingProgress * 100}%` }]} />
@@ -162,10 +179,10 @@ export default function HomeScreen({ navigation }: Props) {
           >
             <Text style={styles.widgetLabel}>실시간 인기재판</Text>
             <Text style={styles.widgetTitle} numberOfLines={1}>
-              {stripCategory(hottest.title)}
+              {hottest.title}
             </Text>
             <Text style={styles.widgetMeta}>
-              진행중 · 조회 {hottest.view_count ?? 0} · 댓글 {commentCount(hottest.id)}
+              진행중 · 조회 {hottest.view_count ?? 0} · 댓글 {hottest.comment_count ?? 0}
             </Text>
           </Card>
         )}
@@ -186,14 +203,14 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
             <Pressable onPress={() => navigation.navigate('Verdict', { id: best.id })}>
               <Text style={styles.widgetTitle} numberOfLines={1}>
-                {stripCategory(best.title)}
+                {best.title}
               </Text>
               <Text style={[styles.widgetMeta, { color: colors.primary }]}>
                 {best.winner === 'A' ? '원고 승 확정' : best.winner === 'B' ? '피고 승 확정' : '무승부'}
               </Text>
               <Text style={styles.widgetMeta}>
                 참여 {best.total_votes ?? 0} · 베팅 {(best.total_bet ?? 0).toLocaleString()}P · 조회{' '}
-                {best.view_count ?? 0} · 댓글 {commentCount(best.id)}
+                {best.view_count ?? 0} · 댓글 {best.comment_count ?? 0}
               </Text>
             </Pressable>
           </Card>
@@ -212,14 +229,6 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
-function stripCategory(title: string) {
-  return title.replace(/^\[.+?\]\s*/, '');
-}
-
-// 데모: 댓글은 세션 동안만 저장되는 목업이라 DEMO_MODE에서만 집계
-function commentCount(trialId: number) {
-  return DEMO_MODE ? demoGetComments(trialId).length : 0;
-}
 
 const styles = StyleSheet.create({
   container: { padding: spacing.lg },
@@ -228,9 +237,51 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.lg,
+    zIndex: 20,
+    elevation: 20,
   },
   greeting: { fontSize: font.h2, color: colors.text, lineHeight: 30 },
   name: { fontWeight: '800' },
+  unreadBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
+  },
+  bellTooltip: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: colors.text,
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  bellTooltipArrow: {
+    position: 'absolute',
+    top: -5,
+    right: 8,
+    width: 10,
+    height: 10,
+    backgroundColor: colors.text,
+    transform: [{ rotate: '45deg' }],
+  },
+  bellTooltipText: {
+    color: colors.white,
+    fontSize: font.tiny,
+    fontWeight: '700',
+    width: 130,
+  },
   attendance: {
     borderWidth: 1,
     borderColor: colors.border,

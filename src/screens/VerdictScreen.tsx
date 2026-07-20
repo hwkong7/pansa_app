@@ -46,7 +46,6 @@ export default function VerdictScreen({ navigation, route }: Props) {
     );
   }
 
-  const category = trial.title.match(/^\[(.+?)\]/)?.[1];
   const winnerText =
     trial.winner === 'A' ? '원고 승' : trial.winner === 'B' ? '피고 승' : '무승부';
   const totalVotes = trial.total_votes ?? (trial.votes_a ?? 0) + (trial.votes_b ?? 0);
@@ -67,7 +66,7 @@ export default function VerdictScreen({ navigation, route }: Props) {
       <View style={styles.container}>
         <Text style={styles.caseNo}>
           CASE {trial.id}
-          {category ? `  ${category}` : ''}
+          {trial.category ? `  ${trial.category}` : ''}
         </Text>
 
         <Card bg={colors.white} style={styles.verdictCard}>

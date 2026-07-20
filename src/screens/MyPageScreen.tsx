@@ -6,7 +6,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } f
 import { signOut } from '@/api/auth';
 import { listMyBets } from '@/api/bets';
 import { getMyProfile } from '@/api/profile';
-import { listMyTrials } from '@/api/trials';
+import { getMyTrialStats, listMyTrials } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
@@ -21,15 +21,13 @@ type Props = CompositeScreenProps<
 
 const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
 
-// 데모: 승률은 정산 이력 집계가 아직 없어 더미 값으로 표시
-const DUMMY_WIN_RATE = 68;
-
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [notif, setNotif] = useState(true);
   const [myTrialsCount, setMyTrialsCount] = useState(0);
   const [myBetsCount, setMyBetsCount] = useState(0);
+  const [winRate, setWinRate] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -37,6 +35,7 @@ export default function MyPageScreen({ navigation }: Props) {
       getMyProfile(user.id).then(setProfile).catch(() => {});
       listMyTrials(user.id).then((t) => setMyTrialsCount(t.length)).catch(() => {});
       listMyBets().then((b) => setMyBetsCount(b.length)).catch(() => {});
+      getMyTrialStats(user.id).then((s) => setWinRate(s.winRate)).catch(() => {});
     }, [user])
   );
 
@@ -48,7 +47,18 @@ export default function MyPageScreen({ navigation }: Props) {
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
       { text: '취소', style: 'cancel' },
-      { text: '로그아웃', style: 'destructive', onPress: () => signOut() },
+      {
+        text: '로그아웃',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+            // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 로그인 화면 전환
+          } catch (e: any) {
+            Alert.alert('오류', e?.message ?? '로그아웃에 실패했어요');
+          }
+        },
+      },
     ]);
   };
 
@@ -66,7 +76,7 @@ export default function MyPageScreen({ navigation }: Props) {
           <View style={{ flex: 1 }}>
             <Text style={styles.nickname}>{nickname}</Text>
             <Text style={styles.profileMeta}>
-              CASE {caseCount} 참여 · 승률 {DUMMY_WIN_RATE}%
+              CASE {caseCount} 참여 · 승률 {winRate !== null ? `${winRate}%` : '-'}
             </Text>
           </View>
           <Pressable onPress={() => navigation.navigate('ProfileSettings')} hitSlop={10}>
@@ -105,7 +115,7 @@ export default function MyPageScreen({ navigation }: Props) {
           <Text style={styles.menuText}>알림 설정</Text>
           <Switch value={notif} onValueChange={setNotif} trackColor={{ true: colors.primary }} />
         </Card>
-        <Card bg={colors.white} style={styles.menu} onPress={() => Alert.alert('고객센터', '준비 중이에요.')}>
+        <Card bg={colors.white} style={styles.menu} onPress={() => navigation.navigate('Support')}>
           <Text style={styles.menuText}>고객센터</Text>
           <Icon name="chevron-right" size={18} color={colors.textMuted} />
         </Card>

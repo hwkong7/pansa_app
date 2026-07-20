@@ -23,7 +23,7 @@ export interface Trial {
   option_b: string; // 예: "피고 승"
   stake: number; // 판돈
   status: TrialStatus;
-  invite_token: string | null;
+  invite_token?: string | null; // 레거시(초대 링크 방식). 실제 연동에선 defendant_id로 대체돼 안 씀
   winner: Choice | null; // null && SETTLED = 무승부(전원 환불)
   created_at: string;
   closes_at?: string | null; // OPEN 상태에서 카운트다운에 사용
@@ -39,7 +39,9 @@ export interface Trial {
   photo_uris?: string[] | null; // 첨부 사진 여러 장 (데모: 로컬 uri 배열)
   deleted?: boolean; // 성립 실패로 삭제 처리된 재판 (목록에서 제외)
   view_count?: number | null; // 조회수 (상세화면 진입 시 +1)
+  comment_count?: number | null; // 댓글 수 (add_comment 시 +1, 비정규화 카운터)
   voting_days?: number | null; // 작성 시 선택한 투표 기간(일). 피고 수락 시점부터 적용
+  category?: string | null; // 연애/학업/가족/친구/기타 등 — 실제 컬럼(과거엔 title 접두어로 인코딩했음)
 }
 
 // 재판의 첨부 사진 목록 조회 (photo_uris 우선, 없으면 레거시 photo_uri로 폴백)
@@ -63,7 +65,49 @@ export interface Profile {
   id: string;
   nickname?: string | null;
   coin: number;
-  photo_uri?: string | null; // 프로필 사진 (데모: 로컬 uri)
+  photo_uri?: string | null; // 프로필 사진
+  checkin_streak?: number | null; // 출석체크 연속일수
+  last_checkin_at?: string | null; // 마지막 출석체크 날짜 (YYYY-MM-DD)
+}
+
+// 댓글 (재판 상세화면 + 마이페이지 '내 댓글 내역')
+export interface Comment {
+  id: number;
+  trial_id: number;
+  user_id: string;
+  text: string;
+  created_at: string;
+  // 작성자 프로필(닉네임/사진) — profiles 조인 시 채워짐. 조인 안 되면 undefined.
+  author?: { nickname: string | null; photo_uri: string | null } | null;
+}
+
+// 알림 종류
+//  TRIAL_REQUEST   : 새 동의요청 도착 (내가 피고로 지정됨)
+//  TRIAL_STARTED   : 재판성립 (상대가 수락해서 OPEN 시작)
+//  COMMENT         : 내 재판에 댓글 (⚠️ 현재 백엔드에 댓글 기능 자체가 없어 미사용)
+//  BET             : 내 재판에 베팅이 들어옴
+//  RESULT          : 재판결과 확정 (SETTLED)
+//  BET_SETTLED     : 재판종료(내 베팅 정산 결과)
+export type NotificationType =
+  | 'TRIAL_REQUEST'
+  | 'TRIAL_STARTED'
+  | 'COMMENT'
+  | 'BET'
+  | 'RESULT'
+  | 'BET_SETTLED'
+  | 'WELCOME';
+
+// ⚠️ 백엔드에 아직 notifications 테이블이 없다(가이드 문서 기준). 이 타입은 신설을
+// 요청할 스키마 초안이며, 테이블이 생기기 전까진 api/notifications.ts가 빈 배열을 반환한다.
+export interface Notification {
+  id: number;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body?: string | null;
+  trial_id?: number | null;
+  is_read: boolean;
+  created_at: string;
 }
 
 // 성립 최소 득표수 (디자인: "성립기준 10표")

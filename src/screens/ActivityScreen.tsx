@@ -1,16 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { listMyBets, type MyBetRow } from '@/api/bets';
 import { listMyComments, type MyCommentRow } from '@/api/comments';
 import { getMyCoin, getMyLedger } from '@/api/profile';
-import { listMyTrials } from '@/api/trials';
+import { cancelTrial, listMyTrials, updateTrialCategory } from '@/api/trials';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
 import type { CoinLedgerEntry, Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
+
+const CATEGORIES = ['연애', '학업', '직장', '가족', '친구', '기타'];
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Activity'>;
 
@@ -30,20 +33,61 @@ export default function ActivityScreen({ navigation, route }: Props) {
   const [bets, setBets] = useState<MyBetRow[]>([]);
   const [ledger, setLedger] = useState<CoinLedgerEntry[]>([]);
   const [coin, setCoin] = useState(0);
+  const [categoryPickerId, setCategoryPickerId] = useState<number | null>(null);
+
+  const loadTrials = useCallback(() => {
+    if (!user) return;
+    listMyTrials(user.id).then(setTrials).catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    if (mode === 'myTrials') listMyTrials(user.id).then(setTrials).catch(() => {});
+    if (mode === 'myTrials') loadTrials();
     if (mode === 'myComments') listMyComments(user.id).then(setComments).catch(() => {});
     if (mode === 'myBets') listMyBets().then(setBets).catch(() => {});
     if (mode === 'wallet') {
       getMyCoin(user.id).then(setCoin).catch(() => {});
       getMyLedger(user.id).then(setLedger).catch(() => {});
     }
-  }, [mode, user]);
+  }, [mode, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onDeleteTrial = (trial: Trial) => {
+    Alert.alert(
+      '사연 삭제',
+      trial.status === 'OPEN'
+        ? '이 사연을 삭제할까요? 원고/피고 판돈과 이미 걸린 베팅이 전원 환불돼요.'
+        : '이 사연을 삭제할까요? 판돈은 바로 환불돼요.',
+      [
+        { text: '아니오', style: 'cancel' },
+        {
+          text: '삭제하기',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelTrial(trial.id);
+              loadTrials();
+            } catch (e: any) {
+              Alert.alert('오류', e?.message ?? '삭제에 실패했어요'); // 서버 메시지 그대로
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const onPickCategory = async (category: string) => {
+    if (categoryPickerId == null) return;
+    try {
+      await updateTrialCategory(categoryPickerId, category);
+      setCategoryPickerId(null);
+      loadTrials();
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '카테고리 수정에 실패했어요'); // 서버 메시지 그대로
+    }
+  };
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       <View style={styles.topbar}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
           <Icon name="chevron-right" size={26} color={colors.text} style={styles.back} />
@@ -65,25 +109,38 @@ export default function ActivityScreen({ navigation, route }: Props) {
           keyExtractor={(t) => String(t.id)}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
-            <Card
-              bg={colors.white}
-              style={styles.row}
+            <MyTrialRow
+              trial={item}
               onPress={() => navigation.navigate('TrialDetail', { id: item.id })}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {item.title.replace(/^\[.+?\]\s*/, '')}
-                </Text>
-                <Text style={styles.rowMeta}>
-                  {statusLabel(item.status)} · 판돈 {item.stake.toLocaleString()}P
-                </Text>
-              </View>
-              <StatusBadge status={item.status} />
-            </Card>
+              onEditCategory={() => setCategoryPickerId(item.id)}
+              onDelete={
+                item.status === 'PENDING' || item.status === 'OPEN'
+                  ? () => onDeleteTrial(item)
+                  : undefined
+              }
+            />
           )}
           ListEmptyComponent={<Text style={styles.empty}>작성한 사연이 없어요.</Text>}
         />
       )}
+
+      <Modal
+        visible={categoryPickerId != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCategoryPickerId(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCategoryPickerId(null)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>카테고리 수정</Text>
+            {CATEGORIES.map((c) => (
+              <Pressable key={c} style={styles.modalOption} onPress={() => onPickCategory(c)}>
+                <Text style={styles.modalOptionText}>{c}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
 
       {mode === 'myComments' && (
         <FlatList
@@ -98,7 +155,7 @@ export default function ActivityScreen({ navigation, route }: Props) {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
-                  {item.trial.title.replace(/^\[.+?\]\s*/, '')}
+                  {item.trial.title}
                 </Text>
                 <Text style={styles.rowMeta} numberOfLines={1}>
                   {item.text}
@@ -140,7 +197,7 @@ export default function ActivityScreen({ navigation, route }: Props) {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>
-                    {item.trial.title.replace(/^\[.+?\]\s*/, '')}
+                    {item.trial.title}
                   </Text>
                   <Text style={styles.rowMeta}>
                     {item.choice === 'A' ? item.trial.option_a : item.trial.option_b} 에{' '}
@@ -187,6 +244,61 @@ export default function ActivityScreen({ navigation, route }: Props) {
         />
       )}
     </Screen>
+  );
+}
+
+// 내 사연 내역 한 줄: 왼쪽으로 스와이프하면 삭제 버튼이 드러난다(PENDING/OPEN만 삭제 가능).
+// 카테고리 배지를 누르면 분류를 잘못 골랐을 때 바로잡을 수 있다.
+function MyTrialRow({
+  trial,
+  onPress,
+  onEditCategory,
+  onDelete,
+}: {
+  trial: Trial;
+  onPress: () => void;
+  onEditCategory: () => void;
+  onDelete?: () => void;
+}) {
+  const swipeRef = useRef<Swipeable>(null);
+
+  const row = (
+    <Card bg={colors.white} style={styles.row} onPress={onPress}>
+      <View style={{ flex: 1 }}>
+        <Pressable onPress={onEditCategory} hitSlop={6} style={styles.categoryRow}>
+          {trial.category && <Text style={styles.categoryTag}>{trial.category}</Text>}
+          <Icon name="settings" size={12} color={colors.textMuted} />
+        </Pressable>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {trial.title}
+        </Text>
+        <Text style={styles.rowMeta}>
+          {statusLabel(trial.status)} · 판돈 {trial.stake.toLocaleString()}P
+        </Text>
+      </View>
+      <StatusBadge status={trial.status} />
+    </Card>
+  );
+
+  if (!onDelete) return row;
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={() => (
+        <Pressable
+          style={styles.deleteAction}
+          onPress={() => {
+            swipeRef.current?.close();
+            onDelete();
+          }}
+        >
+          <Text style={styles.deleteActionText}>사연 삭제</Text>
+        </Pressable>
+      )}
+    >
+      {row}
+    </Swipeable>
   );
 }
 
@@ -240,6 +352,32 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: font.body, fontWeight: '700', color: colors.text },
   rowMeta: { fontSize: font.small, color: colors.textMuted, marginTop: 2 },
   badge: { fontSize: font.small, fontWeight: '700' },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 },
+  categoryTag: { fontSize: font.tiny, color: colors.primary, fontWeight: '700' },
+  deleteAction: {
+    width: 88,
+    marginBottom: spacing.sm,
+    borderRadius: radius.lg,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteActionText: { color: colors.white, fontWeight: '700', fontSize: font.small },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(21,27,46,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  modalTitle: { fontSize: font.h3, fontWeight: '700', color: colors.text, marginBottom: spacing.sm },
+  modalOption: { paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  modalOptionText: { fontSize: font.body, color: colors.text, fontWeight: '600' },
   betResultCol: { alignItems: 'flex-end' },
   settleBadge: { fontSize: font.tiny, fontWeight: '700', marginBottom: 2 },
   result: { fontSize: font.body, fontWeight: '800' },

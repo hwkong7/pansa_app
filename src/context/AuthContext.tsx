@@ -7,7 +7,7 @@ import React, {
   useState,
 } from 'react';
 import { supabase } from '@/lib/supabase';
-import { DEMO_MODE, DEMO_USER, demoAuth } from '@/lib/demo';
+import { shouldForgetLogin } from '@/lib/rememberLogin';
 
 interface AuthContextValue {
   session: Session | null;
@@ -24,20 +24,21 @@ const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [demoSignedIn, setDemoSignedIn] = useState(false);
 
   useEffect(() => {
-    if (DEMO_MODE) {
-      // 데모: 로그인 화면을 그대로 보여주되, demoAuth 상태를 구독한다.
-      setDemoSignedIn(demoAuth.isSignedIn());
-      setLoading(false);
-      const unsub = demoAuth.subscribe(() => setDemoSignedIn(demoAuth.isSignedIn()));
-      return unsub;
-    }
-    supabase.auth.getSession().then(({ data }) => {
+    // "로그인 저장"을 체크 안 하고 로그인했으면, 앱을 새로 켤 때(=이 effect가 처음
+    // 도는 시점)마다 세션을 강제로 지워서 온보딩부터 다시 보여준다.
+    (async () => {
+      if (await shouldForgetLogin()) {
+        await supabase.auth.signOut();
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setLoading(false);
-    });
+    })();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -46,19 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => {
-    if (DEMO_MODE) {
-      if (!demoSignedIn) return { session: null, user: null, loading: false };
-      const demoSession = {
-        user: {
-          id: DEMO_USER.id,
-          user_metadata: { nickname: DEMO_USER.nickname },
-        },
-      } as unknown as Session;
-      return { session: demoSession, user: demoSession.user, loading: false };
-    }
-    return { session, user: session?.user ?? null, loading };
-  }, [session, loading, demoSignedIn]);
+  const value = useMemo<AuthContextValue>(
+    () => ({ session, user: session?.user ?? null, loading }),
+    [session, loading]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

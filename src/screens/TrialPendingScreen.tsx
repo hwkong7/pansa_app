@@ -1,11 +1,11 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { buildInviteUrl, getTrial, subscribeTrial } from '@/api/trials';
-import { ImageViewerModal } from '@/components/ImageViewerModal';
-import { Button, Card, Screen } from '@/components/ui';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { cancelTrial, getTrial, subscribeTrial } from '@/api/trials';
+import { BottomBar, Button, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
+import { ImageViewerModal } from '@/components/ImageViewerModal';
+import { useAuth } from '@/context/AuthContext';
 import { getTrialPhotos, type Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
@@ -18,8 +18,10 @@ const POLL_MS = 10_000; // 수락 대기 중에는 좀 더 자주 확인
 // (댓글은 피고가 수락해 OPEN 상태가 된 사연 디테일 화면에서만 보여줌)
 export default function TrialPendingScreen({ navigation, route }: Props) {
   const { id } = route.params;
+  const { user } = useAuth();
   const [trial, setTrial] = useState<Trial | null>(null);
   const [loading, setLoading] = useState(true);
+  const [canceling, setCanceling] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
@@ -53,6 +55,28 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
     }
   }, [trial?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const onCancel = () => {
+    if (!trial) return;
+    Alert.alert('요청 취소', '이 사연을 취소할까요? 판돈은 바로 환불돼요.', [
+      { text: '아니오', style: 'cancel' },
+      {
+        text: '취소하기',
+        style: 'destructive',
+        onPress: async () => {
+          setCanceling(true);
+          try {
+            await cancelTrial(trial.id);
+            navigation.replace('TrialCanceled', { trialId: trial.id });
+          } catch (e: any) {
+            Alert.alert('오류', e?.message ?? '취소에 실패했어요'); // 서버 메시지 그대로
+          } finally {
+            setCanceling(false);
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading || !trial) {
     return (
       <Screen>
@@ -63,9 +87,8 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
     );
   }
 
-  const category = trial.title.match(/^\[(.+?)\]/)?.[1];
   const photos = getTrialPhotos(trial);
-  const inviteUrl = trial.invite_token ? buildInviteUrl(trial.invite_token) : null;
+  const isOwner = user?.id === trial.plaintiff_id;
 
   return (
     <Screen>
@@ -76,7 +99,7 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
           </Pressable>
           <Text style={styles.caseNo}>
             CASE {trial.id}
-            {category ? `  ${category}` : ''}
+            {trial.category ? `  ${trial.category}` : ''}
           </Text>
         </View>
 
@@ -110,26 +133,14 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
           <Text style={styles.pendingSub}>
             24시간 내 응답이 없으면 자동 취소되고 판돈은 환불돼요.
           </Text>
-          {inviteUrl && (
-            <>
-              <Text style={styles.inviteUrl} numberOfLines={1}>
-                {inviteUrl}
-              </Text>
-              <Button
-                title="동의요청 링크 복사"
-                variant="outline"
-                style={{ marginTop: spacing.md }}
-                onPress={async () => {
-                  await Clipboard.setStringAsync(inviteUrl);
-                  if (trial.invite_token) {
-                    navigation.navigate('ConsentRequest', { token: trial.invite_token });
-                  }
-                }}
-              />
-            </>
-          )}
         </Card>
       </ScrollView>
+
+      {isOwner && (
+        <BottomBar>
+          <Button title="요청 취소" variant="danger" loading={canceling} onPress={onCancel} />
+        </BottomBar>
+      )}
 
       <ImageViewerModal
         visible={viewerOpen}

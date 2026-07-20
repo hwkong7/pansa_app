@@ -37,7 +37,7 @@ export default function VerdictsListScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Verdict', { id: item.id })}
           >
             <Text style={styles.caseTitle} numberOfLines={1}>
-              {item.title.replace(/^\[.+?\]\s*/, '')}
+              {item.title}
             </Text>
             <Text style={styles.result}>
               {item.winner === 'A' ? '원고 승' : item.winner === 'B' ? '피고 승' : '무승부'} 확정

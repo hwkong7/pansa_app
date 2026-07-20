@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,8 @@ import {
 } from 'react-native';
 import { signUp } from '@/api/auth';
 import { Button, Card, Screen } from '@/components/ui';
+import { Icon } from '@/components/icons';
+import { setRememberLogin } from '@/lib/rememberLogin';
 import type { AuthStackParamList } from '@/navigation/types';
 import { colors, font, spacing } from '@/theme';
 
@@ -26,6 +29,8 @@ const REQUIRED_TERMS = [
 export default function SignupScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [nickname, setNickname] = useState('익명의판사');
   const [agreed, setAgreed] = useState<Record<string, boolean>>({});
   const [marketing, setMarketing] = useState(false);
@@ -33,6 +38,8 @@ export default function SignupScreen({ navigation }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const allRequired = REQUIRED_TERMS.every((t) => agreed[t.key]);
+  const passwordValid = password.length >= 6 && password === passwordConfirm;
+  const canSubmit = allRequired && passwordValid;
 
   const toggleAll = () => {
     if (allRequired && marketing) {
@@ -52,14 +59,28 @@ export default function SignupScreen({ navigation }: Props) {
       setErrorMsg('필수 약관에 모두 동의해주세요');
       return;
     }
+    if (password.length < 6) {
+      setErrorMsg('비밀번호는 6자 이상이어야 해요');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setErrorMsg('비밀번호가 서로 일치하지 않아요');
+      return;
+    }
     setLoading(true);
     try {
-      // 가이드 3-1: signUp(email, password).
-      // 닉네임은 프로필 테이블에 별도 저장이 필요하나, 테이블 쓰기는 RLS 로 막혀 있어
-      // (가이드 3-3) auth user_metadata 로 전달한다. 최종 저장 위치는 백엔드와 확인.
-      await signUp(email.trim(), password);
-      // 회원가입 성공 → onAuthStateChange 가 세션 감지하여 자동 진입
-      // (이메일 인증 설정이 켜져 있으면 인증 후 로그인 필요)
+      // 가이드 3-1: signUp(email, password). 닉네임은 auth user_metadata 로 전달하고,
+      // 백엔드 가입 트리거가 이 값을 profiles.nickname 에도 자동 복사해준다(백엔드 팀원 확인됨).
+      await signUp(email.trim(), password, nickname.trim());
+      // 회원가입엔 "로그인 저장" 체크박스가 없으니 항상 유지되는 게 기본 동작
+      await setRememberLogin(true);
+      // 이메일 인증이 켜져 있으면 세션이 바로 안 생기고(onAuthStateChange 무반응),
+      // 인증 메일을 확인해야 로그인할 수 있다 — 그 사실을 명확히 알려준다.
+      Alert.alert(
+        '가입 신청 완료',
+        '작성하신 이메일로 인증 메일이 갔습니다. 메일 확인 후 로그인하시면 신규회원 환영 코인 500P가 지급되어 있어요!',
+        [{ text: '확인', onPress: () => navigation.navigate('Login') }]
+      );
     } catch (e: any) {
       setErrorMsg(e?.message ?? '회원가입에 실패했어요');
     } finally {
@@ -68,7 +89,7 @@ export default function SignupScreen({ navigation }: Props) {
   };
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -98,14 +119,34 @@ export default function SignupScreen({ navigation }: Props) {
           />
 
           <Text style={styles.label}>비밀번호</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="6자 이상"
-            placeholderTextColor={colors.textMuted}
-          />
+          <View style={styles.pwRow}>
+            <TextInput
+              style={styles.pwInput}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              placeholder="6자 이상"
+              placeholderTextColor={colors.textMuted}
+            />
+            <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+              <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color={colors.textMuted} />
+            </Pressable>
+          </View>
+
+          <Text style={styles.label}>비밀번호 확인</Text>
+          <View style={styles.pwRow}>
+            <TextInput
+              style={styles.pwInput}
+              value={passwordConfirm}
+              onChangeText={setPasswordConfirm}
+              secureTextEntry={!showPassword}
+              placeholder="비밀번호를 한 번 더 입력해주세요"
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
+          {passwordConfirm.length > 0 && password !== passwordConfirm && (
+            <Text style={styles.pwMismatch}>비밀번호가 서로 달라요</Text>
+          )}
 
           <Card style={{ marginTop: spacing.lg }}>
             <Pressable onPress={toggleAll} style={styles.termRow}>
@@ -139,7 +180,7 @@ export default function SignupScreen({ navigation }: Props) {
             title="가입완료"
             onPress={onSubmit}
             loading={loading}
-            disabled={!allRequired}
+            disabled={!canSubmit}
             style={{ marginTop: spacing.xl }}
           />
         </ScrollView>
@@ -160,6 +201,20 @@ const styles = StyleSheet.create({
     fontSize: font.body,
     color: colors.text,
   },
+  pwRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.border,
+  },
+  pwInput: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    fontSize: font.body,
+    color: colors.text,
+  },
+  pwMismatch: { color: colors.danger, fontSize: font.tiny, marginTop: 4 },
   termRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

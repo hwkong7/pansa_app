@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -9,19 +10,25 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, spacing } from '@/theme';
+import { Icon } from './icons';
 
 // ── Screen wrapper ────────────────────────────────────────────────
+// edges: 기본은 상단만. 하단 고정 버튼이 없는 화면(BottomBar 미사용)은
+// edges={['top','bottom']}로 시스템 네비게이션 바(제스처 바/3버튼 바) 영역을 피해야 한다.
+// BottomBar를 쓰는 화면은 BottomBar가 자체적으로 insets.bottom을 더하므로 top만으로 충분.
 export function Screen({
   children,
   style,
   bg = colors.bg,
+  edges = ['top'],
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
   bg?: string;
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
 }) {
   return (
-    <SafeAreaView style={[{ flex: 1, backgroundColor: bg }, style]} edges={['top']}>
+    <SafeAreaView style={[{ flex: 1, backgroundColor: bg }, style]} edges={edges}>
       {children}
     </SafeAreaView>
   );
@@ -130,6 +137,99 @@ export function Card({
   return content;
 }
 
+// ── Dropdown (정렬 선택 등 — 재판소/리워드샵에서 공통으로 쓰는 드롭다운) ──
+export function Dropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  align = 'right',
+}: {
+  value: T;
+  options: { key: T; label: string }[];
+  onChange: (key: T) => void;
+  align?: 'left' | 'right';
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.key === value)?.label ?? '';
+
+  return (
+    <View style={styles.dropdownWrap}>
+      <Pressable onPress={() => setOpen((v) => !v)} style={styles.dropdownTrigger}>
+        <Text style={styles.dropdownTriggerText}>{current}</Text>
+        <Icon
+          name="chevron-down"
+          size={14}
+          color={colors.textMuted}
+          style={open ? { transform: [{ rotate: '180deg' }] } : undefined}
+        />
+      </Pressable>
+
+      {open && (
+        <View style={[styles.dropdownMenu, align === 'left' ? { left: 0 } : { right: 0 }]}>
+          {options.map((o) => (
+            <Pressable
+              key={o.key}
+              style={[styles.dropdownMenuItem, value === o.key && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                onChange(o.key);
+                setOpen(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.dropdownMenuItemText,
+                  value === o.key && styles.dropdownMenuItemTextActive,
+                ]}
+              >
+                {o.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ── OptionSheet (⋯ 메뉴 — 댓글 수정/삭제/신고 등 액션시트) ───────────
+// Alert.alert는 Android에서 버튼이 3개를 넘으면 일부가 안 보이는 제약이 있어,
+// 옵션이 3개를 넘을 수 있는 메뉴(신고 사유 등)는 이 컴포넌트를 쓴다.
+export function OptionSheet({
+  visible,
+  onClose,
+  options,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  options: { label: string; onPress: () => void; destructive?: boolean }[];
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <View style={styles.sheetBox}>
+          {options.map((o, i) => (
+            <Pressable
+              key={o.label}
+              style={[styles.sheetOption, i < options.length - 1 && styles.sheetOptionBorder]}
+              onPress={() => {
+                onClose();
+                o.onPress();
+              }}
+            >
+              <Text style={[styles.sheetOptionText, o.destructive && { color: colors.danger }]}>
+                {o.label}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable style={styles.sheetCancel} onPress={onClose}>
+            <Text style={styles.sheetCancelText}>취소</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ── Category badge ────────────────────────────────────────────────
 export function Badge({
   label,
@@ -182,6 +282,63 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.md,
   },
+  dropdownWrap: { position: 'relative', zIndex: 10 },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  dropdownTriggerText: { fontSize: font.small, color: colors.textMuted, fontWeight: '700' },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+    minWidth: 120,
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  dropdownMenuItem: {
+    justifyContent: 'center',
+    height: 40,
+    paddingHorizontal: spacing.md,
+  },
+  dropdownMenuItemActive: { backgroundColor: '#E8F2FF' },
+  dropdownMenuItemText: { fontSize: font.small, color: colors.text },
+  dropdownMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(21,27,46,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetBox: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: spacing.lg,
+    overflow: 'hidden',
+  },
+  sheetOption: { paddingVertical: spacing.md, alignItems: 'center' },
+  sheetOptionBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  sheetOptionText: { fontSize: font.body, color: colors.text, fontWeight: '600' },
+  sheetCancel: {
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    borderRadius: radius.md,
+  },
+  sheetCancelText: { fontSize: font.body, color: colors.textMuted, fontWeight: '700' },
   badge: { fontSize: font.small, fontWeight: '700' },
   countdown: {
     fontSize: 34,

@@ -3,6 +3,7 @@ import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -11,10 +12,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { listTrials } from '@/api/trials';
-import { Screen } from '@/components/ui';
+import { listIncomingRequests, listMyTrials, listTrials, TRIALS_PAGE_SIZE } from '@/api/trials';
+import { Dropdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { TrialCard } from '@/components/TrialCard';
+import { useAuth } from '@/context/AuthContext';
 import type { Trial } from '@/lib/types';
 import type { AppStackParamList, TabParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
@@ -24,30 +26,42 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-const CATEGORIES = ['전체', '연애', '학업', '가족', '친구', '기타'];
+const CATEGORIES = ['전체', '연애', '학업', '직장', '가족', '친구', '기타'];
 
 export default function TrialListScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const [trials, setTrials] = useState<Trial[]>([]);
+  // 내가 피고로 지정된 PENDING 재판의 id 집합 — 카드 탭 시 ConsentRequest로 보낼지 판단용
+  const [incomingIds, setIncomingIds] = useState<Set<number>>(new Set());
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'latest' | 'views' | 'deadline'>('latest');
-  const [sortOpen, setSortOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      // 진행중(OPEN) + 대기중(PENDING) 재판 표시
-      const [open, pending] = await Promise.all([
-        listTrials('OPEN'),
-        listTrials('PENDING'),
+      // 공개 진행중(OPEN) 재판(1페이지) + 나와 관련된 PENDING(내가 원고로 쓴 것 / 내가 피고로 받은 것)
+      const [open, myTrials, incoming] = await Promise.all([
+        listTrials('OPEN', 0),
+        user ? listMyTrials(user.id) : Promise.resolve([]),
+        user ? listIncomingRequests(user.id) : Promise.resolve([]),
       ]);
-      setTrials([...open, ...pending]);
+      const myPending = myTrials.filter((t) => t.status === 'PENDING');
+      const merged = new Map<number, Trial>();
+      [...open, ...myPending, ...incoming].forEach((t) => merged.set(t.id, t));
+      setTrials(Array.from(merged.values()));
+      setIncomingIds(new Set(incoming.map((t) => t.id)));
+      setPage(0);
+      setHasMore(open.length === TRIALS_PAGE_SIZE);
     } catch (e: any) {
       setError(e?.message ?? '목록을 불러오지 못했어요');
     }
-  }, []);
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,9 +75,29 @@ export default function TrialListScreen({ navigation }: Props) {
     setRefreshing(false);
   };
 
+  const onEndReached = async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const more = await listTrials('OPEN', nextPage);
+      setTrials((prev) => {
+        const merged = new Map<number, Trial>(prev.map((t) => [t.id, t]));
+        more.forEach((t) => merged.set(t.id, t));
+        return Array.from(merged.values());
+      });
+      setPage(nextPage);
+      setHasMore(more.length === TRIALS_PAGE_SIZE);
+    } catch {
+      // 무시 — 다음 스크롤에서 재시도됨
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const list = trials.filter((t) => {
-      const inCat = category === '전체' || t.title.includes(`[${category}]`);
+      const inCat = category === '전체' || t.category === category;
       const inSearch =
         !search || t.title.includes(search) || t.story?.includes(search);
       return inCat && inSearch;
@@ -91,8 +125,6 @@ export default function TrialListScreen({ navigation }: Props) {
     { key: 'views', label: '조회수순' },
     { key: 'deadline', label: '마감임박순' },
   ];
-  const currentSortLabel = SORTS.find((o) => o.key === sort)?.label ?? '';
-
   return (
     <Screen>
       <View style={styles.header}>
@@ -128,39 +160,7 @@ export default function TrialListScreen({ navigation }: Props) {
             {category} <Text style={styles.countNum}>{filtered.length}</Text>
           </Text>
 
-          <View style={styles.sortRow}>
-            <Pressable onPress={() => setSortOpen((v) => !v)} style={styles.sortTrigger}>
-              <Text style={styles.sortTriggerText}>{currentSortLabel}</Text>
-              <Icon
-                name="chevron-down"
-                size={14}
-                color={colors.textMuted}
-                style={sortOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
-              />
-            </Pressable>
-
-            {sortOpen && (
-              <View style={styles.sortMenu}>
-                {SORTS.map((o) => (
-                  <Pressable
-                    key={o.key}
-                    style={styles.sortMenuItem}
-                    onPress={() => {
-                      setSort(o.key);
-                      setSortOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.sortMenuItemText, sort === o.key && styles.sortMenuItemTextActive]}>
-                      {o.label}
-                    </Text>
-                    <View style={styles.checkSlot}>
-                      {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
+          <Dropdown value={sort} options={SORTS.map((o) => ({ key: o.key, label: o.label }))} onChange={setSort} />
         </View>
       </View>
 
@@ -172,13 +172,22 @@ export default function TrialListScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <TrialCard
             trial={item}
-            onPress={() => navigation.navigate('TrialDetail', { id: item.id })}
+            onPress={() =>
+              incomingIds.has(item.id)
+                ? navigation.navigate('ConsentRequest', { id: item.id })
+                : navigation.navigate('TrialDetail', { id: item.id })
+            }
           />
         )}
+        onEndReachedThreshold={0.3}
+        onEndReached={onEndReached}
         ListEmptyComponent={
           <Text style={styles.empty}>
             {error ?? '아직 진행중인 재판이 없어요.\n오른쪽 아래 + 로 사연을 올려보세요.'}
           </Text>
+        }
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} /> : null
         }
       />
 
@@ -215,45 +224,6 @@ const styles = StyleSheet.create({
   },
   countText: { fontSize: font.small, color: colors.text, fontWeight: '700' },
   countNum: { color: colors.primary, fontWeight: '800' },
-  sortRow: {
-    position: 'relative',
-    zIndex: 10,
-  },
-  sortTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  sortTriggerText: { fontSize: font.small, color: colors.textMuted, fontWeight: '700' },
-  sortMenu: {
-    position: 'absolute',
-    top: '100%',
-    right: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.white,
-    overflow: 'hidden',
-    zIndex: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  sortMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-    height: 40,
-    paddingHorizontal: spacing.md,
-  },
-  sortMenuItemText: { fontSize: font.small, color: colors.textMuted },
-  sortMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
-  checkSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   catActive: { color: colors.text, fontWeight: '800' },
   list: { padding: spacing.lg, paddingBottom: 120 },
   empty: {

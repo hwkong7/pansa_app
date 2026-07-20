@@ -4,6 +4,7 @@ export type AuthStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Signup: undefined;
+  Faq: undefined;
 };
 
 export type TabParamList = {
@@ -18,11 +19,18 @@ export type AppStackParamList = {
   CreateTrial: undefined;
   TrialDetail: { id: number };
   TrialPending: { id: number };
-  ConsentRequest: { token: string };
+  ConsentRequest: { id: number };
   TrialCanceled: { trialId: number };
   VerdictFailed: { trialId: number; totalVotes?: number };
   Verdict: { id: number };
   RewardShop: undefined;
   Activity: { mode: 'myTrials' | 'myComments' | 'myBets' | 'wallet' };
   ProfileSettings: undefined;
+  Notifications: undefined;
+  Support: undefined;
+  Faq: undefined;
+  InquiryCreate: undefined;
+  InquiryList: undefined;
+  InquiryDetail: { id: number };
+  Legal: undefined;
 };

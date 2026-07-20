@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/ui';
+import { Button, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import type { AuthStackParamList } from '@/navigation/types';
 import { colors, font, spacing } from '@/theme';
@@ -10,7 +10,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Onboarding'>;
 
 export default function OnboardingScreen({ navigation }: Props) {
   return (
-    <View style={styles.root}>
+    <Screen bg={colors.onboardingBg} edges={['top', 'bottom']} style={styles.root}>
       <View style={styles.center}>
         <View style={styles.gavel}>
           <Icon name="gavel" size={72} color={colors.white} />
@@ -29,14 +29,12 @@ export default function OnboardingScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Login')}
         />
       </View>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
-    backgroundColor: colors.onboardingBg,
     justifyContent: 'space-between',
     paddingBottom: spacing.xl,
   },

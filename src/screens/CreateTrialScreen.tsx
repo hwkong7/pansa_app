@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
@@ -16,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { buildInviteUrl, createTrial, getInviteToken } from '@/api/trials';
+import { createTrial, searchDefendantByEmail } from '@/api/trials';
 import { BottomBar, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import type { AppStackParamList } from '@/navigation/types';
@@ -42,7 +41,7 @@ const FG = {
   white: '#FFFFFF',
 } as const;
 
-const CATEGORIES = ['연애', '학업', '가족', '친구', '기타'];
+const CATEGORIES = ['연애', '학업', '직장', '가족', '친구', '기타'];
 const MAX_LEN = 500;
 const MAX_PHOTOS = 5;
 
@@ -52,13 +51,37 @@ export default function CreateTrialScreen({ navigation }: Props) {
   const [stake, setStake] = useState('500'); // 판돈 (최소 TRIAL_MIN_STAKE 이상 정수)
   const [loading, setLoading] = useState(false);
   const [photoUris, setPhotoUris] = useState<string[]>([]);
-  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // 크롭 직후, 확인 전 미리보기
   const [votingDays, setVotingDays] = useState<number>(DEFAULT_VOTING_DAYS);
   const [votingPickerOpen, setVotingPickerOpen] = useState(false);
+  const [defendantEmail, setDefendantEmail] = useState('');
+  const [defendant, setDefendant] = useState<{ id: string; nickname: string | null } | null>(null);
+  const [searchingDefendant, setSearchingDefendant] = useState(false);
 
   const stakeNum = parseInt(stake, 10);
   const canSubmit =
-    story.trim().length >= 5 && Number.isInteger(stakeNum) && stakeNum >= TRIAL_MIN_STAKE;
+    story.trim().length >= 5 &&
+    Number.isInteger(stakeNum) &&
+    stakeNum >= TRIAL_MIN_STAKE &&
+    defendant != null;
+
+  const onSearchDefendant = async () => {
+    if (!defendantEmail.trim()) return;
+    setSearchingDefendant(true);
+    try {
+      const found = await searchDefendantByEmail(defendantEmail.trim());
+      if (!found) {
+        setDefendant(null);
+        Alert.alert('검색 결과 없음', '존재하지 않는 사용자예요. 이메일을 다시 확인해주세요.');
+        return;
+      }
+      setDefendant({ id: found.id, nickname: found.nickname });
+    } catch (e: any) {
+      setDefendant(null);
+      Alert.alert('오류', e?.message ?? '검색에 실패했어요');
+    } finally {
+      setSearchingDefendant(false);
+    }
+  };
 
   const pickImage = async () => {
     if (photoUris.length >= MAX_PHOTOS) {
@@ -75,70 +98,44 @@ export default function CreateTrialScreen({ navigation }: Props) {
       quality: 0.7,
       allowsEditing: true,
     });
-    // 크롭 직후 바로 첨부하지 않고 미리보기 단계를 거쳐 사용자가 확인해야 첨부됨
-    if (!res.canceled && res.assets?.[0]) setPendingPhotoUri(res.assets[0].uri);
+    // 확인 단계 없이 바로 첨부(이전엔 미리보기에서 "확인"을 또 눌러야 했는데,
+    // 그걸 안 누르고 넘어가면 사진이 조용히 빠지는 문제가 있었음)
+    if (!res.canceled && res.assets?.[0]) {
+      setPhotoUris((prev) => [...prev, res.assets[0].uri]);
+    }
   };
-
-  const confirmPhoto = () => {
-    if (!pendingPhotoUri) return;
-    setPhotoUris((prev) => [...prev, pendingPhotoUri]);
-    setPendingPhotoUri(null);
-  };
-
-  const cancelPendingPhoto = () => setPendingPhotoUri(null);
 
   const removePhoto = (idx: number) => {
     setPhotoUris((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const onSubmit = async () => {
-    if (!canSubmit) {
-      Alert.alert('입력 확인', `사연(5자 이상)과 판돈(최소 ${TRIAL_MIN_STAKE}P 이상)을 확인해주세요.`);
+    if (!canSubmit || !defendant) {
+      Alert.alert(
+        '입력 확인',
+        `사연(5자 이상), 판돈(최소 ${TRIAL_MIN_STAKE}P 이상), 상대방 이메일 확인을 확인해주세요.`
+      );
       return;
     }
     setLoading(true);
     try {
-      // 제목: 백엔드 create_trial 은 p_title 필수. 디자인엔 별도 제목이 없어
-      // 카테고리 + 사연 앞부분으로 구성한다. (카테고리 컬럼이 RPC 에 없어 제목에 인코딩)
-      const title = `[${category}] ${story.trim().slice(0, 24)}`;
+      // 제목: 백엔드 create_trial 은 p_title 필수. 디자인엔 별도 제목이 없어 사연 앞부분으로
+      // 구성한다. 카테고리는 더 이상 제목에 인코딩하지 않고 category 컬럼으로 따로 전달.
+      const title = story.trim().slice(0, 24);
 
       const trialId = await createTrial({
         title,
         story: story.trim(),
+        category,
         optionA: '원고 승',
         optionB: '피고 승',
         stake: stakeNum,
+        defendantId: defendant.id,
         votingDays,
         photoUris,
       });
 
-      // 생성 후 초대 토큰 조회 → 피고에게 공유할 링크 생성 (가이드 3-2 ②)
-      const token = await getInviteToken(trialId);
-      const inviteUrl = token ? buildInviteUrl(token) : null;
-
-      if (inviteUrl) {
-        Alert.alert(
-          '동의요청 링크가 생성됐어요',
-          '피고(상대방)에게 아래 링크를 공유하세요.\n\n' + inviteUrl,
-          [
-            {
-              text: '링크 복사',
-              onPress: async () => {
-                await Clipboard.setStringAsync(inviteUrl);
-                // 복사 후 피고 동의요청 화면(ConsentRequest)으로 이동
-                if (token) navigation.navigate('ConsentRequest', { token });
-                else navigation.navigate('TrialDetail', { id: trialId });
-              },
-            },
-            {
-              text: '확인',
-              onPress: () => navigation.navigate('TrialDetail', { id: trialId }),
-            },
-          ]
-        );
-      } else {
-        navigation.navigate('TrialDetail', { id: trialId });
-      }
+      navigation.navigate('TrialPending', { id: trialId });
     } catch (e: any) {
       // 서버 에러 메시지 그대로 (가이드 3-4)
       Alert.alert('오류', e?.message ?? '재판 생성에 실패했어요');
@@ -174,6 +171,44 @@ export default function CreateTrialScreen({ navigation }: Props) {
             ))}
           </View>
 
+          {/* 상대방(피고) 이메일 검색 — 실제 재판 생성엔 defendant_id가 필수라 반드시 필요한 입력 */}
+          <Card bg={FG.white} style={styles.rowCard}>
+            <Text style={styles.rowLabel}>상대방 이메일</Text>
+            <View style={styles.defendantRow}>
+              <TextInput
+                style={styles.defendantInput}
+                value={defendantEmail}
+                onChangeText={(t) => {
+                  setDefendantEmail(t);
+                  if (defendant) setDefendant(null);
+                }}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                placeholder="email@example.com"
+                placeholderTextColor={FG.textFaint}
+              />
+              <Pressable
+                onPress={onSearchDefendant}
+                disabled={searchingDefendant || !defendantEmail.trim()}
+                style={[
+                  styles.defendantSearchBtn,
+                  (searchingDefendant || !defendantEmail.trim()) && { opacity: 0.5 },
+                ]}
+              >
+                {searchingDefendant ? (
+                  <ActivityIndicator size="small" color={FG.white} />
+                ) : (
+                  <Text style={styles.defendantSearchBtnText}>확인</Text>
+                )}
+              </Pressable>
+            </View>
+            {defendant && (
+              <Text style={styles.defendantFound}>
+                ✓ {defendant.nickname ?? '익명'}님을 찾았어요
+              </Text>
+            )}
+          </Card>
+
           <Card bg={FG.bg} style={styles.storyCard}>
             <TextInput
               style={styles.storyInput}
@@ -197,22 +232,6 @@ export default function CreateTrialScreen({ navigation }: Props) {
                 {story.length} / {MAX_LEN}
               </Text>
             </View>
-
-            {/* 크롭 직후 미리보기: 확인을 눌러야 실제로 첨부됨 */}
-            {pendingPhotoUri && (
-              <View style={styles.previewWrap}>
-                <Image source={{ uri: pendingPhotoUri }} style={styles.previewImg} />
-                <Text style={styles.previewLabel}>이 사진을 첨부할까요?</Text>
-                <View style={styles.previewBtnRow}>
-                  <Pressable onPress={cancelPendingPhoto} style={styles.previewBtnOutline}>
-                    <Text style={styles.previewBtnOutlineText}>취소</Text>
-                  </Pressable>
-                  <Pressable onPress={confirmPhoto} style={styles.previewBtnPrimary}>
-                    <Text style={styles.previewBtnPrimaryText}>확인</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
 
             {photoUris.length > 0 && (
               <View style={styles.thumbRow}>
@@ -345,6 +364,7 @@ const styles = StyleSheet.create({
   },
   storyCard: {
     minHeight: 140,
+    marginTop: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -380,26 +400,6 @@ const styles = StyleSheet.create({
   count: { color: FG.textFaint, fontSize: font.small },
   privacy: { color: FG.textMuted, fontSize: font.tiny, marginTop: 6 },
 
-  previewWrap: { marginTop: spacing.md, alignItems: 'flex-start' },
-  previewImg: { width: 160, height: 160, borderRadius: radius.md },
-  previewLabel: { color: FG.textMuted, fontSize: font.small, marginTop: spacing.sm },
-  previewBtnRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  previewBtnOutline: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: FG.border,
-  },
-  previewBtnOutlineText: { color: FG.textMuted, fontWeight: '700', fontSize: font.small },
-  previewBtnPrimary: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: FG.button,
-  },
-  previewBtnPrimaryText: { color: FG.white, fontWeight: '700', fontSize: font.small },
-
   rowCard: {
     marginTop: spacing.md,
     borderWidth: 1,
@@ -432,6 +432,26 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   stakeNotice: { color: FG.textMuted, fontSize: font.small, marginTop: spacing.sm, lineHeight: 18 },
+
+  defendantRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  defendantInput: {
+    flex: 1,
+    borderBottomWidth: 1.5,
+    borderBottomColor: FG.border,
+    paddingVertical: spacing.xs,
+    fontSize: font.body,
+    color: FG.text,
+  },
+  defendantSearchBtn: {
+    height: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: FG.button,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  defendantSearchBtnText: { color: FG.white, fontWeight: '700', fontSize: font.small },
+  defendantFound: { color: FG.primary, fontSize: font.small, fontWeight: '600', marginTop: spacing.sm },
   flowNote: { color: FG.textMuted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 18 },
   bottom: { padding: spacing.lg },
 
