@@ -2,6 +2,7 @@ import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 /**
  * ⚠️ 가이드 5장 유의사항
@@ -24,7 +25,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    // 모바일에는 URL 콜백이 없으므로 반드시 false (웹 전용 옵션).
-    detectSessionInUrl: false,
+    // 웹은 OAuth 콜백이 URL(#access_token=...)로 오므로 감지해야 하고,
+    // 모바일은 커스텀 스킴(pansa://)으로 오고 수동으로 setSession 하므로 꺼둔다.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });

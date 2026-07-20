@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -58,12 +59,27 @@ export async function getCurrentUser() {
 const REDIRECT_URL = 'pansa://auth-callback';
 
 async function signInWithProvider(provider: 'kakao' | 'naver') {
-  // ⚠️ @supabase/supabase-js 의 Provider 유니온 타입엔 'naver'가 없어서 타입 캐스팅으로
-  // 우회한다(백엔드 쪽 커스텀 구현이라 SDK 타입에는 아직 반영이 안 된 것으로 보임).
+  const providerCast = provider as import('@supabase/supabase-js').Provider; // ⚠️ naver는 SDK 타입엔 없는 커스텀 구현
+
+  // 웹: 브라우저 자체를 카카오/네이버로 통째로 리다이렉트한다. 돌아올 때 URL의
+  // #access_token=... 을 supabase-js 가 자동 감지(detectSessionInUrl)해서 세션을
+  // 세팅해주므로, 앱 스킴/WebBrowser/수동 setSession 로직(모바일 전용)이 전혀 필요 없다.
+  if (Platform.OS === 'web') {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: providerCast,
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) throw error;
+    return;
+  }
+
+  // 모바일(Expo, React Native): window.location 리다이렉트가 없어서, signInWithOAuth
+  // 가 준 인증 URL을 WebBrowser 로 직접 열고, 앱 스킴(pansa://)으로 돌아온 콜백
+  // URL에서 토큰을 꺼내 세션을 수동으로 세팅하는 방식으로 처리한다.
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: provider as import('@supabase/supabase-js').Provider,
+    provider: providerCast,
     options: {
-      redirectTo: 'pansa://auth-callback',
+      redirectTo: REDIRECT_URL,
       skipBrowserRedirect: true,
     },
   });
