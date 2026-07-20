@@ -1,8 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { listNotifications, markNotificationRead } from '@/api/notifications';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { listNotifications, markNotificationRead, NOTIFICATIONS_PAGE_SIZE } from '@/api/notifications';
 import { Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
@@ -24,13 +24,38 @@ const TYPE_LABEL: Record<Notification['type'], string> = {
 export default function NotificationScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [items, setItems] = useState<Notification[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
-      listNotifications(user.id).then(setItems).catch(() => {});
+      setPage(0);
+      listNotifications(user.id, 0)
+        .then((rows) => {
+          setItems(rows);
+          setHasMore(rows.length === NOTIFICATIONS_PAGE_SIZE);
+        })
+        .catch(() => {});
     }, [user])
   );
+
+  const onEndReached = async () => {
+    if (!user || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const rows = await listNotifications(user.id, nextPage);
+      setItems((prev) => [...prev, ...rows]);
+      setPage(nextPage);
+      setHasMore(rows.length === NOTIFICATIONS_PAGE_SIZE);
+    } catch {
+      // 무시 — 다음 스크롤에서 재시도됨
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const onPressItem = async (n: Notification) => {
     if (!n.is_read) {
@@ -82,7 +107,12 @@ export default function NotificationScreen({ navigation }: Props) {
             </View>
           </Pressable>
         )}
+        onEndReachedThreshold={0.3}
+        onEndReached={onEndReached}
         ListEmptyComponent={<Text style={styles.empty}>아직 알림이 없어요.</Text>}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} /> : null
+        }
       />
     </Screen>
   );

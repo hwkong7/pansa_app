@@ -13,7 +13,7 @@ import type { CoinLedgerEntry, Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
 
-const CATEGORIES = ['연애', '학업', '가족', '친구', '기타'];
+const CATEGORIES = ['연애', '학업', '직장', '가족', '친구', '기타'];
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Activity'>;
 
@@ -155,7 +155,7 @@ export default function ActivityScreen({ navigation, route }: Props) {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
-                  {item.trial.title.replace(/^\[.+?\]\s*/, '')}
+                  {item.trial.title}
                 </Text>
                 <Text style={styles.rowMeta} numberOfLines={1}>
                   {item.text}
@@ -197,7 +197,7 @@ export default function ActivityScreen({ navigation, route }: Props) {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>
-                    {item.trial.title.replace(/^\[.+?\]\s*/, '')}
+                    {item.trial.title}
                   </Text>
                   <Text style={styles.rowMeta}>
                     {item.choice === 'A' ? item.trial.option_a : item.trial.option_b} 에{' '}
@@ -261,17 +261,16 @@ function MyTrialRow({
   onDelete?: () => void;
 }) {
   const swipeRef = useRef<Swipeable>(null);
-  const category = trial.title.match(/^\[(.+?)\]/)?.[1];
 
   const row = (
     <Card bg={colors.white} style={styles.row} onPress={onPress}>
       <View style={{ flex: 1 }}>
         <Pressable onPress={onEditCategory} hitSlop={6} style={styles.categoryRow}>
-          {category && <Text style={styles.categoryTag}>{category}</Text>}
+          {trial.category && <Text style={styles.categoryTag}>{trial.category}</Text>}
           <Icon name="settings" size={12} color={colors.textMuted} />
         </Pressable>
         <Text style={styles.rowTitle} numberOfLines={1}>
-          {trial.title.replace(/^\[.+?\]\s*/, '')}
+          {trial.title}
         </Text>
         <Text style={styles.rowMeta}>
           {statusLabel(trial.status)} · 판돈 {trial.stake.toLocaleString()}P

@@ -3,6 +3,8 @@ import { uploadImage } from '@/lib/upload';
 
 export type InquiryStatus = 'OPEN' | 'ANSWERED';
 
+export const INQUIRIES_PAGE_SIZE = 10;
+
 export interface Inquiry {
   id: number;
   category: string;
@@ -42,13 +44,14 @@ export async function createInquiry(input: {
   return data as number;
 }
 
-// ── 읽기: 내 문의 내역 ───────────────────────────────────────────
-export async function listMyInquiries(userId: string): Promise<Inquiry[]> {
+// ── 읽기: 내 문의 내역 (페이지네이션, page: 0부터) ─────────────────
+export async function listMyInquiries(userId: string, page = 0): Promise<Inquiry[]> {
   const { data, error } = await supabase
     .from('inquiries')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(page * INQUIRIES_PAGE_SIZE, page * INQUIRIES_PAGE_SIZE + INQUIRIES_PAGE_SIZE - 1);
   if (error) throw error;
   return (data ?? []) as Inquiry[];
 }

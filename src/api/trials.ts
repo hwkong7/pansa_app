@@ -1,13 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import {
-  DEMO_MODE,
-  demoCreateTrial,
-  demoIncomingRequests,
-  demoIncrementView,
-  demoRespondToTrial,
-  demoSearchDefendant,
-  demoState,
-} from '@/lib/demo';
 import type { Trial, TrialStatus } from '@/lib/types';
 import { uploadImage } from '@/lib/upload';
 
@@ -18,15 +9,15 @@ import { uploadImage } from '@/lib/upload';
  *   - 쓰기(생성/수락/거절/베팅)는 "무조건 rpc" 만 사용한다.
  *   - 읽기(조회)는 .from().select() 자유롭게 사용.
  *   - 마감/정산은 서버가 매분 자동 처리한다. 프론트에서 마감/정산 코드는 만들지 않는다.
- *
- * DEMO_MODE 가 true 면 백엔드 대신 목업 데이터로 동작한다 (src/lib/demo.ts).
  */
 
-const PAGE_SIZE = 10;
+export const TRIALS_PAGE_SIZE = 10;
+const PAGE_SIZE = TRIALS_PAGE_SIZE;
 
 export interface CreateTrialInput {
   title: string;
   story: string;
+  category: string;
   optionA: string;
   optionB: string;
   stake: number;
@@ -39,7 +30,6 @@ export interface CreateTrialInput {
 export async function searchDefendantByEmail(
   email: string
 ): Promise<{ id: string; nickname: string | null; email: string } | null> {
-  if (DEMO_MODE) return demoSearchDefendant(email);
   const { data, error } = await supabase
     .from('profiles')
     .select('id, nickname, email')
@@ -51,15 +41,6 @@ export async function searchDefendantByEmail(
 
 // ── 쓰기: 재판 생성 (rpc create_trial) ─────────────────────────────
 export async function createTrial(input: CreateTrialInput): Promise<number> {
-  if (DEMO_MODE) {
-    return demoCreateTrial({
-      title: input.title,
-      story: input.story,
-      stake: input.stake,
-      photoUris: input.photoUris ?? null,
-      votingDays: input.votingDays,
-    });
-  }
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -75,6 +56,7 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
   const { data: trialId, error } = await supabase.rpc('create_trial', {
     p_title: input.title,
     p_story: input.story,
+    p_category: input.category,
     p_option_a: input.optionA,
     p_option_b: input.optionB,
     p_stake: input.stake,
@@ -88,10 +70,6 @@ export async function createTrial(input: CreateTrialInput): Promise<number> {
 
 // ── 쓰기: 초대 수락/거절 (rpc respond_to_trial) ─────────────────────
 export async function respondToTrial(trialId: number, accept: boolean) {
-  if (DEMO_MODE) {
-    demoRespondToTrial(trialId, accept);
-    return;
-  }
   const { error } = await supabase.rpc('respond_to_trial', {
     p_trial_id: trialId,
     p_accept: accept,
@@ -121,12 +99,6 @@ export async function cancelTrial(trialId: number): Promise<void> {
 // ── 읽기: 재판 목록 (상태 필터 + 페이지네이션) ──────────────────────
 // page: 0부터 시작. 10개씩 끊어서 로딩(가이드 3-7 성능 가이드).
 export async function listTrials(status?: TrialStatus, page = 0): Promise<Trial[]> {
-  if (DEMO_MODE) {
-    const list = demoState.trials.filter(
-      (t) => !t.deleted && (!status || t.status === status)
-    );
-    return list.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-  }
   let query = supabase
     .from('trials')
     .select('*')
@@ -140,7 +112,6 @@ export async function listTrials(status?: TrialStatus, page = 0): Promise<Trial[
 
 // ── 읽기: 내가 피고로 지정된 PENDING 재판 (홈 '받은 동의요청' 위젯) ──
 export async function listIncomingRequests(userId: string): Promise<Trial[]> {
-  if (DEMO_MODE) return demoIncomingRequests();
   const { data, error } = await supabase
     .from('trials')
     .select('*')
@@ -153,21 +124,12 @@ export async function listIncomingRequests(userId: string): Promise<Trial[]> {
 
 // ── 쓰기: 조회수 +1 (상세화면 진입 시, rpc increment_trial_view) ──────
 export async function incrementTrialView(id: number): Promise<void> {
-  if (DEMO_MODE) {
-    demoIncrementView(id);
-    return;
-  }
   const { error } = await supabase.rpc('increment_trial_view', { p_trial_id: id });
   if (error) throw error;
 }
 
 // ── 읽기: 재판 단건 ───────────────────────────────────────────────
 export async function getTrial(id: number): Promise<Trial> {
-  if (DEMO_MODE) {
-    const t = demoState.trials.find((x) => x.id === id);
-    if (!t) throw new Error('재판을 찾을 수 없어요');
-    return { ...t };
-  }
   const { data, error } = await supabase
     .from('trials')
     .select('*')
@@ -182,7 +144,6 @@ export function subscribeTrial(
   id: number,
   onChange: (trial: Trial) => void
 ): () => void {
-  if (DEMO_MODE) return () => {}; // 데모: 구독 없음
   const channel = supabase
     .channel(`trial-${id}`)
     .on(
@@ -198,10 +159,6 @@ export function subscribeTrial(
 
 // ── 읽기: 내가 작성한 재판 (마이페이지) ───────────────────────────
 export async function listMyTrials(userId: string): Promise<Trial[]> {
-  if (DEMO_MODE) {
-    const { demoMyTrials } = await import('@/lib/demo');
-    return demoMyTrials();
-  }
   const { data, error } = await supabase
     .from('trials')
     .select('*')
@@ -220,7 +177,6 @@ export interface MyTrialStats {
 }
 
 export async function getMyTrialStats(userId: string): Promise<MyTrialStats> {
-  if (DEMO_MODE) return { settledCount: 0, wins: 0, winRate: 68 };
   const { data, error } = await supabase
     .from('trials')
     .select('plaintiff_id, defendant_id, winner')
@@ -240,4 +196,3 @@ export async function getMyTrialStats(userId: string): Promise<MyTrialStats> {
     winRate: decided.length > 0 ? Math.round((wins / decided.length) * 100) : null,
   };
 }
-

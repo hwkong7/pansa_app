@@ -3,7 +3,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getMyCoin } from '@/api/profile';
-import { listMyRedemptions, listRewards, redeemReward, type Reward, type RewardRedemption } from '@/api/rewards';
+import {
+  addWishlist,
+  listMyRedemptions,
+  listMyWishlist,
+  listRewards,
+  redeemReward,
+  removeWishlist,
+  type Reward,
+  type RewardRedemption,
+} from '@/api/rewards';
 import { Dropdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
@@ -34,6 +43,7 @@ export default function RewardShopScreen({ navigation }: Props) {
         listRewards(),
         user ? getMyCoin(user.id).then(setCoin) : Promise.resolve(),
         user ? listMyRedemptions(user.id).then(setRedemptions) : Promise.resolve(),
+        user ? listMyWishlist(user.id).then(setWishlist) : Promise.resolve(),
       ]);
       setRewards(r);
     } catch (e: any) {
@@ -45,8 +55,19 @@ export default function RewardShopScreen({ navigation }: Props) {
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
-  const toggleWish = (id: number) =>
-    setWishlist((w) => (w.includes(id) ? w.filter((x) => x !== id) : [...w, id]));
+  // 낙관적으로 먼저 토글하고, 실패하면 되돌린다 (하트를 눌렀는데 반응이 늦게 느껴지지 않도록).
+  const toggleWish = async (id: number) => {
+    if (!user) return;
+    const wished = wishlist.includes(id);
+    setWishlist((w) => (wished ? w.filter((x) => x !== id) : [...w, id]));
+    try {
+      if (wished) await removeWishlist(user.id, id);
+      else await addWishlist(user.id, id);
+    } catch (e: any) {
+      setWishlist((w) => (wished ? [...w, id] : w.filter((x) => x !== id)));
+      Alert.alert('오류', e?.message ?? '찜 처리에 실패했어요');
+    }
+  };
 
   const buy = (r: Reward) => {
     if (coin < r.cost) {

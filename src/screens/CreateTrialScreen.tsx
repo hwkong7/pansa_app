@@ -41,7 +41,7 @@ const FG = {
   white: '#FFFFFF',
 } as const;
 
-const CATEGORIES = ['연애', '학업', '가족', '친구', '기타'];
+const CATEGORIES = ['연애', '학업', '직장', '가족', '친구', '기타'];
 const MAX_LEN = 500;
 const MAX_PHOTOS = 5;
 
@@ -119,13 +119,14 @@ export default function CreateTrialScreen({ navigation }: Props) {
     }
     setLoading(true);
     try {
-      // 제목: 백엔드 create_trial 은 p_title 필수. 디자인엔 별도 제목이 없어
-      // 카테고리 + 사연 앞부분으로 구성한다. (카테고리 컬럼이 RPC 에 없어 제목에 인코딩)
-      const title = `[${category}] ${story.trim().slice(0, 24)}`;
+      // 제목: 백엔드 create_trial 은 p_title 필수. 디자인엔 별도 제목이 없어 사연 앞부분으로
+      // 구성한다. 카테고리는 더 이상 제목에 인코딩하지 않고 category 컬럼으로 따로 전달.
+      const title = story.trim().slice(0, 24);
 
       const trialId = await createTrial({
         title,
         story: story.trim(),
+        category,
         optionA: '원고 승',
         optionB: '피고 승',
         stake: stakeNum,

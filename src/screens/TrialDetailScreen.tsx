@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { placeBet } from '@/api/bets';
-import { addComment, deleteComment, editComment, listComments } from '@/api/comments';
+import { addComment, COMMENTS_PAGE_SIZE, deleteComment, editComment, listComments } from '@/api/comments';
 import { reportContent } from '@/api/reports';
 import { getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
 import { BetSheet } from '@/components/BetSheet';
@@ -58,14 +58,32 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   // 가려지지 않게 하되, 평소엔 아이콘만 보이다가 탭했을 때만 입력창이 펼쳐지게 한다
   // (안 쓸 때도 화면 하단을 계속 차지하고 있지 않도록).
   const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLimit, setCommentsLimit] = useState(COMMENTS_PAGE_SIZE);
+  const [hasMoreComments, setHasMoreComments] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
   const [commentBarOpen, setCommentBarOpen] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
 
-  const loadComments = useCallback(() => {
-    listComments(id).then(setComments).catch(() => {});
-  }, [id]);
+  // limit개까지 다시 불러오는 방식 — "더보기"를 누를 때마다 limit을 늘려서 재조회한다
+  // (댓글 추가/수정/삭제 후 새로고침도 항상 지금까지 본 만큼은 그대로 유지됨).
+  const loadComments = useCallback(
+    (limit = commentsLimit) => {
+      listComments(id, limit)
+        .then((rows) => {
+          setComments(rows);
+          setHasMoreComments(rows.length === limit);
+        })
+        .catch(() => {});
+    },
+    [id, commentsLimit]
+  );
+
+  const loadMoreComments = () => {
+    const next = commentsLimit + COMMENTS_PAGE_SIZE;
+    setCommentsLimit(next);
+    loadComments(next);
+  };
 
   useEffect(() => {
     loadComments();
@@ -215,7 +233,6 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const category = trial.title.match(/^\[(.+?)\]/)?.[1];
   const photos = getTrialPhotos(trial);
 
   return (
@@ -236,7 +253,7 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
             </Pressable>
             <Text style={styles.caseNo}>
               CASE {trial.id}
-              {category ? `  ${category}` : ''}
+              {trial.category ? `  ${trial.category}` : ''}
             </Text>
             <View style={{ flex: 1 }} />
             {trial.plaintiff_id !== user?.id && (
@@ -281,6 +298,8 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
             onSaveEdit={saveEditComment}
             onCancelEdit={cancelEditComment}
             onMenuPress={setMenuComment}
+            hasMore={hasMoreComments}
+            onLoadMore={loadMoreComments}
           />
         </ScrollView>
 
@@ -496,6 +515,8 @@ function CommentsList({
   onSaveEdit,
   onCancelEdit,
   onMenuPress,
+  hasMore,
+  onLoadMore,
 }: {
   comments: Comment[];
   myUserId?: string;
@@ -506,6 +527,8 @@ function CommentsList({
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onMenuPress: (c: Comment) => void;
+  hasMore: boolean;
+  onLoadMore: () => void;
 }) {
   return (
     <View style={styles.commentsWrap}>
@@ -558,6 +581,12 @@ function CommentsList({
 
       {comments.length === 0 && (
         <Text style={styles.commentEmpty}>첫 댓글을 남겨보세요.</Text>
+      )}
+
+      {hasMore && (
+        <Pressable onPress={onLoadMore} style={styles.commentsMoreBtn}>
+          <Text style={styles.commentsMoreText}>댓글 더보기</Text>
+        </Pressable>
       )}
     </View>
   );
@@ -630,6 +659,8 @@ const styles = StyleSheet.create({
   commentNick: { fontSize: font.small, fontWeight: '700', color: colors.text },
   commentText: { fontSize: font.body, color: colors.text, marginTop: 2, lineHeight: 20 },
   commentEmpty: { color: colors.textMuted, fontSize: font.small, marginBottom: spacing.md },
+  commentsMoreBtn: { alignItems: 'center', paddingVertical: spacing.sm },
+  commentsMoreText: { color: colors.primary, fontSize: font.small, fontWeight: '700' },
   commentEditInput: {
     marginTop: 4,
     fontSize: font.body,

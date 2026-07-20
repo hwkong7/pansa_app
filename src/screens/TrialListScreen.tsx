@@ -3,6 +3,7 @@ import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
@@ -11,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { listIncomingRequests, listMyTrials, listTrials } from '@/api/trials';
+import { listIncomingRequests, listMyTrials, listTrials, TRIALS_PAGE_SIZE } from '@/api/trials';
 import { Dropdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { TrialCard } from '@/components/TrialCard';
@@ -25,7 +26,7 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<AppStackParamList>
 >;
 
-const CATEGORIES = ['전체', '연애', '학업', '가족', '친구', '기타'];
+const CATEGORIES = ['전체', '연애', '학업', '직장', '가족', '친구', '기타'];
 
 export default function TrialListScreen({ navigation }: Props) {
   const { user } = useAuth();
@@ -37,13 +38,16 @@ export default function TrialListScreen({ navigation }: Props) {
   const [sort, setSort] = useState<'latest' | 'views' | 'deadline'>('latest');
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      // 공개 진행중(OPEN) 재판 + 나와 관련된 PENDING(내가 원고로 쓴 것 / 내가 피고로 받은 것)
+      // 공개 진행중(OPEN) 재판(1페이지) + 나와 관련된 PENDING(내가 원고로 쓴 것 / 내가 피고로 받은 것)
       const [open, myTrials, incoming] = await Promise.all([
-        listTrials('OPEN'),
+        listTrials('OPEN', 0),
         user ? listMyTrials(user.id) : Promise.resolve([]),
         user ? listIncomingRequests(user.id) : Promise.resolve([]),
       ]);
@@ -52,6 +56,8 @@ export default function TrialListScreen({ navigation }: Props) {
       [...open, ...myPending, ...incoming].forEach((t) => merged.set(t.id, t));
       setTrials(Array.from(merged.values()));
       setIncomingIds(new Set(incoming.map((t) => t.id)));
+      setPage(0);
+      setHasMore(open.length === TRIALS_PAGE_SIZE);
     } catch (e: any) {
       setError(e?.message ?? '목록을 불러오지 못했어요');
     }
@@ -69,9 +75,29 @@ export default function TrialListScreen({ navigation }: Props) {
     setRefreshing(false);
   };
 
+  const onEndReached = async () => {
+    if (!hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const more = await listTrials('OPEN', nextPage);
+      setTrials((prev) => {
+        const merged = new Map<number, Trial>(prev.map((t) => [t.id, t]));
+        more.forEach((t) => merged.set(t.id, t));
+        return Array.from(merged.values());
+      });
+      setPage(nextPage);
+      setHasMore(more.length === TRIALS_PAGE_SIZE);
+    } catch {
+      // 무시 — 다음 스크롤에서 재시도됨
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     const list = trials.filter((t) => {
-      const inCat = category === '전체' || t.title.includes(`[${category}]`);
+      const inCat = category === '전체' || t.category === category;
       const inSearch =
         !search || t.title.includes(search) || t.story?.includes(search);
       return inCat && inSearch;
@@ -153,10 +179,15 @@ export default function TrialListScreen({ navigation }: Props) {
             }
           />
         )}
+        onEndReachedThreshold={0.3}
+        onEndReached={onEndReached}
         ListEmptyComponent={
           <Text style={styles.empty}>
             {error ?? '아직 진행중인 재판이 없어요.\n오른쪽 아래 + 로 사연을 올려보세요.'}
           </Text>
+        }
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} /> : null
         }
       />
 

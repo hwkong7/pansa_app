@@ -10,7 +10,6 @@ import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
 import { useAttendance } from '@/lib/attendance';
-import { DEMO_MODE, demoGetComments } from '@/lib/demo';
 import type { Profile, Trial } from '@/lib/types';
 import type { AppStackParamList, TabParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
@@ -160,7 +159,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Card style={styles.widget}>
             <Text style={styles.widgetLabel}>피고인 동의 대기중</Text>
             <Text style={styles.widgetTitle} numberOfLines={1}>
-              {stripCategory(waitingTrial.title)}
+              {waitingTrial.title}
             </Text>
             <View style={styles.consentTrack}>
               <View style={[styles.consentFill, { width: `${waitingProgress * 100}%` }]} />
@@ -180,7 +179,7 @@ export default function HomeScreen({ navigation }: Props) {
           >
             <Text style={styles.widgetLabel}>실시간 인기재판</Text>
             <Text style={styles.widgetTitle} numberOfLines={1}>
-              {stripCategory(hottest.title)}
+              {hottest.title}
             </Text>
             <Text style={styles.widgetMeta}>
               진행중 · 조회 {hottest.view_count ?? 0} · 댓글 {hottest.comment_count ?? 0}
@@ -204,7 +203,7 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
             <Pressable onPress={() => navigation.navigate('Verdict', { id: best.id })}>
               <Text style={styles.widgetTitle} numberOfLines={1}>
-                {stripCategory(best.title)}
+                {best.title}
               </Text>
               <Text style={[styles.widgetMeta, { color: colors.primary }]}>
                 {best.winner === 'A' ? '원고 승 확정' : best.winner === 'B' ? '피고 승 확정' : '무승부'}
@@ -230,9 +229,6 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
-function stripCategory(title: string) {
-  return title.replace(/^\[.+?\]\s*/, '');
-}
 
 const styles = StyleSheet.create({
   container: { padding: spacing.lg },

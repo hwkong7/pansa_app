@@ -1,8 +1,8 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { listMyInquiries, type Inquiry } from '@/api/inquiries';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { INQUIRIES_PAGE_SIZE, listMyInquiries, type Inquiry } from '@/api/inquiries';
 import { Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
@@ -18,13 +18,38 @@ function statusLabel(s: Inquiry['status']) {
 export default function InquiryListScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [items, setItems] = useState<Inquiry[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
-      listMyInquiries(user.id).then(setItems).catch(() => {});
+      setPage(0);
+      listMyInquiries(user.id, 0)
+        .then((rows) => {
+          setItems(rows);
+          setHasMore(rows.length === INQUIRIES_PAGE_SIZE);
+        })
+        .catch(() => {});
     }, [user])
   );
+
+  const onEndReached = async () => {
+    if (!user || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const rows = await listMyInquiries(user.id, nextPage);
+      setItems((prev) => [...prev, ...rows]);
+      setPage(nextPage);
+      setHasMore(rows.length === INQUIRIES_PAGE_SIZE);
+    } catch {
+      // 무시 — 다음 스크롤에서 재시도됨
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -55,7 +80,12 @@ export default function InquiryListScreen({ navigation }: Props) {
             </Text>
           </Card>
         )}
+        onEndReachedThreshold={0.3}
+        onEndReached={onEndReached}
         ListEmptyComponent={<Text style={styles.empty}>문의 내역이 없어요.</Text>}
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} /> : null
+        }
       />
     </Screen>
   );

@@ -22,13 +22,16 @@ import type { Notification } from '@/lib/types';
  * 배포 시점 차이를 대비해 조회 실패(테이블 아직 없음 등) 시 조용히 빈 배열로 폴백한다.
  */
 
-export async function listNotifications(userId: string): Promise<Notification[]> {
+export const NOTIFICATIONS_PAGE_SIZE = 20;
+
+export async function listNotifications(userId: string, page = 0): Promise<Notification[]> {
   try {
     const { data, error } = await supabase
       .from('notifications')
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(page * NOTIFICATIONS_PAGE_SIZE, page * NOTIFICATIONS_PAGE_SIZE + NOTIFICATIONS_PAGE_SIZE - 1);
     if (error) throw error;
     return (data ?? []) as Notification[];
   } catch {
@@ -37,9 +40,19 @@ export async function listNotifications(userId: string): Promise<Notification[]>
   }
 }
 
+// 뱃지 카운트용: 목록을 전부 안 불러오고 개수만 센다(count exact + head).
 export async function unreadNotificationCount(userId: string): Promise<number> {
-  const list = await listNotifications(userId);
-  return list.filter((n) => !n.is_read).length;
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+    if (error) throw error;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 // NOTE: 읽음 처리는 내 소유 row 하나만 바꾸는 것이라 우선 직접 update로 구현한다.

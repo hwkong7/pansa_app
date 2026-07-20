@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import { DEMO_MODE, demoPlaceBet } from '@/lib/demo';
 import { getMyLedger } from '@/api/profile';
 import { BET_MAX, BET_MIN, type Choice } from '@/lib/types';
 
@@ -8,25 +7,15 @@ import { BET_MAX, BET_MIN, type Choice } from '@/lib/types';
  *
  * 규칙 (가이드 4장): 금액 1~500, 재판당 1회, 당사자 불가, 승패는 득표수 기준.
  *
- * ⚠️ 디자인과의 차이 2건:
- *  1) 디자인은 편 선택(원고/피고)과 베팅이 별도로 보이지만 백엔드엔 무료 투표 RPC가
- *     없어, place_bet 의 choice(A/B)가 곧 '어느 편에 투표+베팅'을 의미한다.
- *  2) 디자인 하단 시트의 빠른 금액(1,000P·2,000P·전액)은 가이드의 베팅 상한(500)과
- *     충돌한다. 실제 백엔드 연동 시 500 초과는 서버가 거절한다("500코인까지 가능").
- *     => 데모 모드에서는 디자인대로 큰 금액도 허용해 화면을 보여준다.
+ * ⚠️ 디자인과의 차이: 디자인은 편 선택(원고/피고)과 베팅이 별도로 보이지만 백엔드엔
+ * 무료 투표 RPC가 없어, place_bet 의 choice(A/B)가 곧 '어느 편에 투표+베팅'을 의미한다.
  */
 export async function placeBet(
   trialId: number,
   choice: Choice,
   amount: number
 ) {
-  if (DEMO_MODE) {
-    // 데모: 상한 검증 없이 디자인대로 처리
-    demoPlaceBet(trialId, choice, amount);
-    return;
-  }
-
-  // 실제 연동: 클라이언트 1차 검증 (최종 검증은 서버)
+  // 클라이언트 1차 검증 (최종 검증은 서버)
   if (!Number.isInteger(amount) || amount < BET_MIN || amount > BET_MAX) {
     throw new Error(`베팅은 ${BET_MIN}~${BET_MAX}코인까지 가능합니다`);
   }
@@ -48,11 +37,6 @@ export interface MyBetRow {
 }
 
 export async function listMyBets(): Promise<MyBetRow[]> {
-  if (DEMO_MODE) {
-    const { demoMyBets } = await import('@/lib/demo');
-    return demoMyBets();
-  }
-
   const {
     data: { user },
   } = await supabase.auth.getUser();

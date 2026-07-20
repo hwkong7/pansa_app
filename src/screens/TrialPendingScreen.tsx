@@ -87,7 +87,6 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
     );
   }
 
-  const category = trial.title.match(/^\[(.+?)\]/)?.[1];
   const photos = getTrialPhotos(trial);
   const isOwner = user?.id === trial.plaintiff_id;
 
@@ -100,7 +99,7 @@ export default function TrialPendingScreen({ navigation, route }: Props) {
           </Pressable>
           <Text style={styles.caseNo}>
             CASE {trial.id}
-            {category ? `  ${category}` : ''}
+            {trial.category ? `  ${trial.category}` : ''}
           </Text>
         </View>
 

@@ -41,6 +41,7 @@ export interface Trial {
   view_count?: number | null; // 조회수 (상세화면 진입 시 +1)
   comment_count?: number | null; // 댓글 수 (add_comment 시 +1, 비정규화 카운터)
   voting_days?: number | null; // 작성 시 선택한 투표 기간(일). 피고 수락 시점부터 적용
+  category?: string | null; // 연애/학업/가족/친구/기타 등 — 실제 컬럼(과거엔 title 접두어로 인코딩했음)
 }
 
 // 재판의 첨부 사진 목록 조회 (photo_uris 우선, 없으면 레거시 photo_uri로 폴백)
@@ -64,7 +65,9 @@ export interface Profile {
   id: string;
   nickname?: string | null;
   coin: number;
-  photo_uri?: string | null; // 프로필 사진 (데모: 로컬 uri)
+  photo_uri?: string | null; // 프로필 사진
+  checkin_streak?: number | null; // 출석체크 연속일수
+  last_checkin_at?: string | null; // 마지막 출석체크 날짜 (YYYY-MM-DD)
 }
 
 // 댓글 (재판 상세화면 + 마이페이지 '내 댓글 내역')
