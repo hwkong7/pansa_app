@@ -303,7 +303,7 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
             </Pressable>
           </View>
         ) : (
-          <View style={styles.commentBarCollapsedRow} pointerEvents="box-none">
+          <View style={styles.commentBarCollapsedRow}>
             <Pressable onPress={openCommentBar} style={styles.commentBarIcon}>
               <Icon name="chat" size={16} color={colors.white} />
             </Pressable>
@@ -649,10 +649,12 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   commentBarCollapsedRow: {
-    position: 'absolute',
-    left: spacing.lg,
-    bottom: spacing.md,
-    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   commentBarIcon: {
     width: 36,

@@ -51,7 +51,6 @@ export default function CreateTrialScreen({ navigation }: Props) {
   const [stake, setStake] = useState('500'); // 판돈 (최소 TRIAL_MIN_STAKE 이상 정수)
   const [loading, setLoading] = useState(false);
   const [photoUris, setPhotoUris] = useState<string[]>([]);
-  const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // 크롭 직후, 확인 전 미리보기
   const [votingDays, setVotingDays] = useState<number>(DEFAULT_VOTING_DAYS);
   const [votingPickerOpen, setVotingPickerOpen] = useState(false);
   const [defendantEmail, setDefendantEmail] = useState('');
@@ -99,17 +98,12 @@ export default function CreateTrialScreen({ navigation }: Props) {
       quality: 0.7,
       allowsEditing: true,
     });
-    // 크롭 직후 바로 첨부하지 않고 미리보기 단계를 거쳐 사용자가 확인해야 첨부됨
-    if (!res.canceled && res.assets?.[0]) setPendingPhotoUri(res.assets[0].uri);
+    // 확인 단계 없이 바로 첨부(이전엔 미리보기에서 "확인"을 또 눌러야 했는데,
+    // 그걸 안 누르고 넘어가면 사진이 조용히 빠지는 문제가 있었음)
+    if (!res.canceled && res.assets?.[0]) {
+      setPhotoUris((prev) => [...prev, res.assets[0].uri]);
+    }
   };
-
-  const confirmPhoto = () => {
-    if (!pendingPhotoUri) return;
-    setPhotoUris((prev) => [...prev, pendingPhotoUri]);
-    setPendingPhotoUri(null);
-  };
-
-  const cancelPendingPhoto = () => setPendingPhotoUri(null);
 
   const removePhoto = (idx: number) => {
     setPhotoUris((prev) => prev.filter((_, i) => i !== idx));
@@ -237,22 +231,6 @@ export default function CreateTrialScreen({ navigation }: Props) {
                 {story.length} / {MAX_LEN}
               </Text>
             </View>
-
-            {/* 크롭 직후 미리보기: 확인을 눌러야 실제로 첨부됨 */}
-            {pendingPhotoUri && (
-              <View style={styles.previewWrap}>
-                <Image source={{ uri: pendingPhotoUri }} style={styles.previewImg} />
-                <Text style={styles.previewLabel}>이 사진을 첨부할까요?</Text>
-                <View style={styles.previewBtnRow}>
-                  <Pressable onPress={cancelPendingPhoto} style={styles.previewBtnOutline}>
-                    <Text style={styles.previewBtnOutlineText}>취소</Text>
-                  </Pressable>
-                  <Pressable onPress={confirmPhoto} style={styles.previewBtnPrimary}>
-                    <Text style={styles.previewBtnPrimaryText}>확인</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )}
 
             {photoUris.length > 0 && (
               <View style={styles.thumbRow}>
@@ -420,26 +398,6 @@ const styles = StyleSheet.create({
   thumbRemoveText: { color: FG.white, fontSize: 12, fontWeight: '700' },
   count: { color: FG.textFaint, fontSize: font.small },
   privacy: { color: FG.textMuted, fontSize: font.tiny, marginTop: 6 },
-
-  previewWrap: { marginTop: spacing.md, alignItems: 'flex-start' },
-  previewImg: { width: 160, height: 160, borderRadius: radius.md },
-  previewLabel: { color: FG.textMuted, fontSize: font.small, marginTop: spacing.sm },
-  previewBtnRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  previewBtnOutline: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: FG.border,
-  },
-  previewBtnOutlineText: { color: FG.textMuted, fontWeight: '700', fontSize: font.small },
-  previewBtnPrimary: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: FG.button,
-  },
-  previewBtnPrimaryText: { color: FG.white, fontWeight: '700', fontSize: font.small },
 
   rowCard: {
     marginTop: spacing.md,
