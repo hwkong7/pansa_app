@@ -19,6 +19,7 @@ const TYPE_LABEL: Record<Notification['type'], string> = {
   BET: '베팅',
   RESULT: '재판결과',
   BET_SETTLED: '재판종료',
+  WELCOME: '환영',
 };
 
 export default function NotificationScreen({ navigation }: Props) {

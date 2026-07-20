@@ -76,9 +76,11 @@ export default function SignupScreen({ navigation }: Props) {
       await setRememberLogin(true);
       // 이메일 인증이 켜져 있으면 세션이 바로 안 생기고(onAuthStateChange 무반응),
       // 인증 메일을 확인해야 로그인할 수 있다 — 그 사실을 명확히 알려준다.
-      Alert.alert('가입 신청 완료', '작성하신 이메일로 인증 메일이 갔습니다. 메일을 확인해주세요.', [
-        { text: '확인', onPress: () => navigation.navigate('Login') },
-      ]);
+      Alert.alert(
+        '가입 신청 완료',
+        '작성하신 이메일로 인증 메일이 갔습니다. 메일 확인 후 로그인하시면 신규회원 환영 코인 500P가 지급되어 있어요!',
+        [{ text: '확인', onPress: () => navigation.navigate('Login') }]
+      );
     } catch (e: any) {
       setErrorMsg(e?.message ?? '회원가입에 실패했어요');
     } finally {

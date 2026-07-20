@@ -94,7 +94,8 @@ export type NotificationType =
   | 'COMMENT'
   | 'BET'
   | 'RESULT'
-  | 'BET_SETTLED';
+  | 'BET_SETTLED'
+  | 'WELCOME';
 
 // ⚠️ 백엔드에 아직 notifications 테이블이 없다(가이드 문서 기준). 이 타입은 신설을
 // 요청할 스키마 초안이며, 테이블이 생기기 전까진 api/notifications.ts가 빈 배열을 반환한다.
