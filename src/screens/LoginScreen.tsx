@@ -13,6 +13,7 @@ import {
 import { signIn, signInWithKakao, signInWithNaver } from '@/api/auth';
 import { Button, Screen } from '@/components/ui';
 import { KakaoIcon, NaverIcon } from '@/components/customIcons';
+import { setRememberLogin } from '@/lib/rememberLogin';
 import type { AuthStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
 
@@ -21,6 +22,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'kakao' | 'naver' | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await signIn(email.trim(), password);
+      await setRememberLogin(remember);
       // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 메인 진입
     } catch (e: any) {
       // 서버 에러 메시지 그대로 노출 (가이드 3-4)
@@ -44,6 +47,8 @@ export default function LoginScreen({ navigation }: Props) {
     setSocialLoading(provider);
     try {
       await (provider === 'kakao' ? signInWithKakao() : signInWithNaver());
+      // 소셜 로그인엔 "로그인 저장" 체크박스가 없으니 항상 유지되는 게 기본 동작
+      await setRememberLogin(true);
       // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 메인 진입
     } catch (e: any) {
       setErrorMsg(e?.message ?? '소셜 로그인에 실패했어요');
@@ -81,6 +86,11 @@ export default function LoginScreen({ navigation }: Props) {
             placeholder="••••••••"
             placeholderTextColor={colors.textMuted}
           />
+
+          <Pressable onPress={() => setRemember((v) => !v)} style={styles.rememberRow} hitSlop={6}>
+            <Text style={styles.rememberCheck}>{remember ? '☑' : '☐'}</Text>
+            <Text style={styles.rememberText}>로그인 저장</Text>
+          </Pressable>
 
           {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
 
@@ -139,6 +149,14 @@ const styles = StyleSheet.create({
     fontSize: font.body,
     color: colors.text,
   },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+  },
+  rememberCheck: { fontSize: font.h3, color: colors.primary },
+  rememberText: { fontSize: font.small, color: colors.textMuted },
   error: { color: colors.danger, marginTop: spacing.md, fontSize: font.small },
   socialRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
   social: {

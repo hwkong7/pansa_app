@@ -14,6 +14,7 @@ import {
 import { signUp } from '@/api/auth';
 import { Button, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
+import { setRememberLogin } from '@/lib/rememberLogin';
 import type { AuthStackParamList } from '@/navigation/types';
 import { colors, font, spacing } from '@/theme';
 
@@ -71,6 +72,8 @@ export default function SignupScreen({ navigation }: Props) {
       // 가이드 3-1: signUp(email, password). 닉네임은 auth user_metadata 로 전달하고,
       // 백엔드 가입 트리거가 이 값을 profiles.nickname 에도 자동 복사해준다(백엔드 팀원 확인됨).
       await signUp(email.trim(), password, nickname.trim());
+      // 회원가입엔 "로그인 저장" 체크박스가 없으니 항상 유지되는 게 기본 동작
+      await setRememberLogin(true);
       // 이메일 인증이 켜져 있으면 세션이 바로 안 생기고(onAuthStateChange 무반응),
       // 인증 메일을 확인해야 로그인할 수 있다 — 그 사실을 명확히 알려준다.
       Alert.alert('가입 신청 완료', '작성하신 이메일로 인증 메일이 갔습니다. 메일을 확인해주세요.', [

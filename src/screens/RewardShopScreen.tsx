@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getMyCoin } from '@/api/profile';
 import { listMyRedemptions, listRewards, redeemReward, type Reward, type RewardRedemption } from '@/api/rewards';
 import { Dropdown, Screen } from '@/components/ui';
@@ -25,6 +25,8 @@ export default function RewardShopScreen({ navigation }: Props) {
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<'high' | 'low'>('high');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   const refresh = useCallback(async () => {
     try {
@@ -69,11 +71,17 @@ export default function RewardShopScreen({ navigation }: Props) {
   };
 
   const list = useMemo(() => {
-    if (view === 'wish') return rewards.filter((r) => wishlist.includes(r.id));
-    if (view === 'history') return redemptions.map((rd) => rd.reward);
-    const base = tab === '전체' ? rewards : rewards.filter((r) => r.category === tab);
+    let base: Reward[];
+    if (view === 'wish') base = rewards.filter((r) => wishlist.includes(r.id));
+    else if (view === 'history') base = redemptions.map((rd) => rd.reward);
+    else base = tab === '전체' ? rewards : rewards.filter((r) => r.category === tab);
+
+    const q = query.trim();
+    if (q) base = base.filter((r) => r.name.includes(q) || r.brand.includes(q));
+
+    if (view === 'history') return base;
     return [...base].sort((a, b) => (sort === 'high' ? b.cost - a.cost : a.cost - b.cost));
-  }, [view, tab, wishlist, rewards, redemptions, sort]);
+  }, [view, tab, wishlist, rewards, redemptions, sort, query]);
 
   const title = view === 'wish' ? '찜한 상품' : view === 'history' ? '구매내역' : '리워드샵';
   const emptyText =
@@ -89,8 +97,27 @@ export default function RewardShopScreen({ navigation }: Props) {
         >
           <Icon name="chevron-right" size={26} color={colors.text} style={styles.backIcon} />
         </Pressable>
-        <Text style={styles.topTitle}>{title}</Text>
-        <Icon name="search" size={20} color={colors.text} />
+        {searchOpen ? (
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="상품명 또는 브랜드 검색"
+            placeholderTextColor={colors.textMuted}
+            autoFocus
+          />
+        ) : (
+          <Text style={styles.topTitle}>{title}</Text>
+        )}
+        <Pressable
+          onPress={() => {
+            if (searchOpen) setQuery('');
+            setSearchOpen((v) => !v);
+          }}
+          hitSlop={10}
+        >
+          <Icon name={searchOpen ? 'close' : 'search'} size={20} color={colors.text} />
+        </Pressable>
       </View>
 
       {/* 내 코인 카드 */}
@@ -200,6 +227,16 @@ const styles = StyleSheet.create({
   },
   backIcon: { transform: [{ rotate: '180deg' }] },
   topTitle: { fontSize: font.h3, fontWeight: '800', color: colors.text },
+  searchInput: {
+    flex: 1,
+    marginHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    fontSize: font.body,
+    color: colors.text,
+    textAlignVertical: 'center',
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.border,
+  },
   balanceCard: {
     marginHorizontal: spacing.lg,
     backgroundColor: colors.cardBg,

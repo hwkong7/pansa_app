@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -36,11 +37,14 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
 
-  // 댓글: 입력창을 ScrollView 밖(키보드 위에 항상 떠 있는 하단 바)으로 빼서
-  // 키보드가 올라와도 입력창이 가려지지 않게 한다.
+  // 댓글: 입력창을 ScrollView 밖(키보드 위에 항상 떠 있는 하단 바)으로 빼서 키보드에
+  // 가려지지 않게 하되, 평소엔 아이콘만 보이다가 탭했을 때만 입력창이 펼쳐지게 한다
+  // (안 쓸 때도 화면 하단을 계속 차지하고 있지 않도록).
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
+  const [commentBarOpen, setCommentBarOpen] = useState(false);
+  const commentInputRef = useRef<TextInput>(null);
 
   const loadComments = useCallback(() => {
     listComments(id).then(setComments).catch(() => {});
@@ -49,6 +53,18 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   useEffect(() => {
     loadComments();
   }, [loadComments]);
+
+  // 키보드가 내려가면(뒤로가기/바깥 탭 등 어떤 경로로든) 입력창도 같이 접는다
+  useEffect(() => {
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const sub = Keyboard.addListener(hideEvent, () => setCommentBarOpen(false));
+    return () => sub.remove();
+  }, []);
+
+  const openCommentBar = () => {
+    setCommentBarOpen(true);
+    setTimeout(() => commentInputRef.current?.focus(), 0);
+  };
 
   const addCommentNow = async () => {
     const t = commentText.trim();
@@ -174,26 +190,38 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           <CommentsList comments={comments} />
         </ScrollView>
 
-        {/* 댓글 입력창: 스크롤 영역 밖(키보드 바로 위)에 항상 떠 있어 키보드에 가려지지 않는다 */}
-        <View style={styles.commentInputRow}>
-          <TextInput
-            style={styles.commentInput}
-            value={commentText}
-            onChangeText={setCommentText}
-            placeholder="댓글 달기..."
-            placeholderTextColor={colors.textMuted}
-            onSubmitEditing={addCommentNow}
-            returnKeyType="send"
-            editable={!posting}
-          />
-          <Pressable
-            onPress={addCommentNow}
-            style={[styles.commentSend, posting && { opacity: 0.5 }]}
-            disabled={posting}
-          >
-            <Text style={styles.commentSendText}>등록</Text>
-          </Pressable>
-        </View>
+        {/* 댓글 입력창: 평소엔 아이콘만 떠 있다가, 탭하면 펼쳐진다(키보드 위에 항상 위치). */}
+        {commentBarOpen ? (
+          <View style={styles.commentInputRow}>
+            <View style={styles.commentBarIcon}>
+              <Icon name="chat" size={16} color={colors.white} />
+            </View>
+            <TextInput
+              ref={commentInputRef}
+              style={styles.commentInput}
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="댓글을 남겨보세요"
+              placeholderTextColor={colors.textMuted}
+              onSubmitEditing={addCommentNow}
+              returnKeyType="send"
+              editable={!posting}
+            />
+            <Pressable
+              onPress={addCommentNow}
+              style={[styles.commentSend, posting && { opacity: 0.5 }]}
+              disabled={posting}
+            >
+              <Icon name="arrow-up" size={18} color={colors.white} />
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.commentBarCollapsedRow} pointerEvents="box-none">
+            <Pressable onPress={openCommentBar} style={styles.commentBarIcon}>
+              <Icon name="chat" size={16} color={colors.white} />
+            </Pressable>
+          </View>
+        )}
 
         <ImageViewerModal
           visible={viewerOpen}
@@ -433,14 +461,40 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  commentBarCollapsedRow: {
+    position: 'absolute',
+    left: spacing.lg,
+    bottom: spacing.md,
+    backgroundColor: 'transparent',
+  },
+  commentBarIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
   commentInput: {
-    flex: 1, height: 44, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.md, color: colors.text, fontSize: font.body,
+    flex: 1,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.cardBg,
+    paddingHorizontal: spacing.md,
+    color: colors.text,
+    fontSize: font.body,
   },
   commentSend: {
-    height: 44, paddingHorizontal: spacing.md, borderRadius: radius.pill,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  commentSendText: { color: colors.white, fontWeight: '700', fontSize: font.small },
 });

@@ -182,9 +182,6 @@ export function Dropdown<T extends string>({
               >
                 {o.label}
               </Text>
-              <View style={styles.dropdownCheckSlot}>
-                {value === o.key && <Icon name="check" size={14} color={colors.primary} />}
-              </View>
             </Pressable>
           ))}
         </View>
@@ -271,20 +268,13 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
   },
   dropdownMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
+    justifyContent: 'center',
     height: 40,
     paddingHorizontal: spacing.md,
-    marginHorizontal: 6,
-    marginVertical: 2,
-    borderRadius: radius.sm,
   },
-  dropdownMenuItemActive: { backgroundColor: colors.primary + '15' },
-  dropdownMenuItemText: { fontSize: font.small, color: colors.textMuted },
+  dropdownMenuItemActive: { backgroundColor: '#E8F2FF' },
+  dropdownMenuItemText: { fontSize: font.small, color: colors.text },
   dropdownMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
-  dropdownCheckSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   badge: { fontSize: font.small, fontWeight: '700' },
   countdown: {
     fontSize: 34,
