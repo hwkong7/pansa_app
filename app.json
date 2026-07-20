@@ -31,6 +31,7 @@
     "extra": {
       "supabaseUrl": "https://khablhmfdmiqhruhcqeg.supabase.co",
       "supabaseAnonKey": "sb_publishable_IF9-e1P23-NRXCTRXf4Nhg_gj3gVaFg",
+      "naverClientId": "EN4K7XhgSwZpwrmGiqTc",
       "eas": {
         "projectId": "0762a87f-1f6c-4b3f-a689-f273e1b96226"
       }
