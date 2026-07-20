@@ -3,7 +3,7 @@ import { uploadImage } from '@/lib/upload';
 import type { CoinLedgerEntry, Profile } from '@/lib/types';
 
 /**
- * 프로필/코인 API (가이드 3-3, 전부 읽기).
+ * 프로필/코인 API. 코인은 서버 RPC(daily_checkin 등)로만 변경되고, 여기선 조회만 한다.
  */
 
 export async function getMyProfile(userId: string): Promise<Profile> {

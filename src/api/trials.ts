@@ -5,7 +5,7 @@ import { uploadImage } from '@/lib/upload';
 /**
  * 재판 API.
  *
- * ⚠️ 가이드 3-3 핵심 규칙:
+ * ⚠️ 핵심 규칙:
  *   - 쓰기(생성/수락/거절/베팅)는 "무조건 rpc" 만 사용한다.
  *   - 읽기(조회)는 .from().select() 자유롭게 사용.
  *   - 마감/정산은 서버가 매분 자동 처리한다. 프론트에서 마감/정산 코드는 만들지 않는다.
@@ -21,7 +21,7 @@ export interface CreateTrialInput {
   optionA: string;
   optionB: string;
   stake: number;
-  defendantId: string; // 상대(피고) 검색으로 알아낸 UUID (가이드 3-2)
+  defendantId: string; // 상대(피고) 이메일 검색으로 알아낸 UUID
   photoUris?: string[] | null;
   votingDays?: number; // 피고 수락 시점부터 적용되는 투표 기간(일). create_trial의 p_voting_days로 전달됨
 }
@@ -97,7 +97,7 @@ export async function cancelTrial(trialId: number): Promise<void> {
 }
 
 // ── 읽기: 재판 목록 (상태 필터 + 페이지네이션) ──────────────────────
-// page: 0부터 시작. 10개씩 끊어서 로딩(가이드 3-7 성능 가이드).
+// page: 0부터 시작. 한 번에 전체를 불러오지 않도록 10개씩 끊어서 로딩.
 export async function listTrials(status?: TrialStatus, page = 0): Promise<Trial[]> {
   let query = supabase
     .from('trials')
@@ -139,7 +139,7 @@ export async function getTrial(id: number): Promise<Trial> {
   return data as Trial;
 }
 
-// ── 상태 실시간 구독 (가이드 4장, 선택) ───────────────────────────
+// ── 상태 실시간 구독 (선택 사용) ───────────────────────────────────
 export function subscribeTrial(
   id: number,
   onChange: (trial: Trial) => void

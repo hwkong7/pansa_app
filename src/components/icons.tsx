@@ -17,8 +17,10 @@ import {
 /**
  * 아이콘 중앙 관리.
  *
- * 방식 A (기본): Expo 내장 아이콘 세트(Feather/MaterialCommunityIcons). Tabler와 거의 동일.
- * 방식 B (커스텀): 나중에 Figma SVG를 받으면 아래 순서로 교체.
+ * 방식 A: Expo 내장 아이콘 세트(Feather/MaterialCommunityIcons). Tabler와 거의 동일해서,
+ *   디자인 SVG가 있는 아이콘도 색·크기 자유도가 더 좋은 이 세트를 그대로 쓰는 경우가 있다.
+ * 방식 B (커스텀 SVG): USE_CUSTOM 목록에 올라간 아이콘만 디자인 SVG로 렌더링.
+ *   추가하려면:
  *   1) SVG를 React 컴포넌트로 만들거나 react-native-svg 로 그린 뒤 CUSTOM 에 등록
  *   2) 해당 아이콘 name 을 USE_CUSTOM 목록에 추가
  *   => 화면 코드는 전혀 건드릴 필요 없음. 이 파일만 수정.
@@ -54,7 +56,7 @@ export type IconName =
   | 'arrow-up'
   | 'more';
 
-// 방식 B로 전환할 아이콘 이름 (업로드된 Figma SVG 사용)
+// 디자인 SVG로 렌더링할 아이콘 이름 (나머지는 방식 A 유지)
 const USE_CUSTOM: IconName[] = [
   'home',
   'court',

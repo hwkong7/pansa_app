@@ -2,7 +2,7 @@ import React from 'react';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 /**
- * 업로드된 Figma SVG 아이콘들을 react-native-svg 컴포넌트로 옮긴 것.
+ * 디자인에서 받은 SVG 아이콘들을 react-native-svg 컴포넌트로 옮긴 것.
  * 라인/단색 아이콘은 color 로 stroke/fill 을 바꿀 수 있음(탭 활성/비활성 전환용).
  * 브랜드 아이콘(kakao/naver)과 +원형 버튼은 원색 고정.
  */

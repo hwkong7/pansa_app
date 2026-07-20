@@ -3,9 +3,9 @@ import { getMyLedger } from '@/api/profile';
 import { BET_MAX, BET_MIN, type Choice } from '@/lib/types';
 
 /**
- * 참관인 베팅 API (rpc place_bet, 가이드 3-2 ④).
+ * 참관인 베팅 API (rpc place_bet).
  *
- * 규칙 (가이드 4장): 금액 1~500, 재판당 1회, 당사자 불가, 승패는 득표수 기준.
+ * 규칙: 금액 1~500, 재판당 1회, 당사자 불가, 승패는 득표수 기준.
  *
  * ⚠️ 디자인과의 차이: 디자인은 편 선택(원고/피고)과 베팅이 별도로 보이지만 백엔드엔
  * 무료 투표 RPC가 없어, place_bet 의 choice(A/B)가 곧 '어느 편에 투표+베팅'을 의미한다.

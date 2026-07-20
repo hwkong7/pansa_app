@@ -69,8 +69,8 @@ export default function SignupScreen({ navigation }: Props) {
     }
     setLoading(true);
     try {
-      // 가이드 3-1: signUp(email, password). 닉네임은 auth user_metadata 로 전달하고,
-      // 백엔드 가입 트리거가 이 값을 profiles.nickname 에도 자동 복사해준다(백엔드 팀원 확인됨).
+      // 닉네임은 auth user_metadata 로 전달하고,
+      // 가입 트리거가 이 값을 profiles.nickname 에도 자동 복사해준다.
       await signUp(email.trim(), password, nickname.trim());
       // 회원가입엔 "로그인 저장" 체크박스가 없으니 항상 유지되는 게 기본 동작
       await setRememberLogin(true);

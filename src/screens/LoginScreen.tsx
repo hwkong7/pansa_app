@@ -35,7 +35,7 @@ export default function LoginScreen({ navigation }: Props) {
       await setRememberLogin(remember);
       // 성공 시 AuthContext 의 onAuthStateChange 가 감지 → 자동으로 메인 진입
     } catch (e: any) {
-      // 서버 에러 메시지 그대로 노출 (가이드 3-4)
+      // 서버 에러 메시지 그대로 노출 (임의 문구로 덮지 않음)
       setErrorMsg(e?.message ?? '로그인에 실패했어요');
     } finally {
       setLoading(false);

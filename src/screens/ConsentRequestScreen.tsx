@@ -37,7 +37,7 @@ export default function ConsentRequestScreen({ navigation, route }: Props) {
   const respond = async (accept: boolean) => {
     setSubmitting(accept ? 'accept' : 'reject');
     try {
-      // 가이드 3-2 ③ respond_to_trial. 수락 시 원고와 동일 금액이 차감됨(잔액 부족 시 에러)
+      // 수락 시 원고와 동일 금액이 차감됨(잔액 부족 시 에러)
       await respondToTrial(id, accept);
       if (accept && trial) {
         navigation.replace('TrialDetail', { id: trial.id });

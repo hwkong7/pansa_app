@@ -3,7 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '@/lib/supabase';
 
 /**
- * 인증 API (가이드 3-1). 실제 Supabase Auth로 동작한다.
+ * 인증 API. 실제 Supabase Auth로 동작한다.
  */
 
 export async function signUp(email: string, password: string, nickname?: string) {
@@ -12,7 +12,7 @@ export async function signUp(email: string, password: string, nickname?: string)
     password,
     options: nickname ? { data: { nickname } } : undefined,
   });
-  if (error) throw error; // 서버 에러 메시지는 한국어 그대로 (가이드 3-4)
+  if (error) throw error; // 서버 에러 메시지를 그대로 노출 (임의 문구로 덮지 않음)
   return data;
 }
 
@@ -32,7 +32,7 @@ export async function signOut() {
 
 export async function updatePassword(newPassword: string) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw error; // 서버 에러 메시지는 한국어 그대로 (가이드 3-4)
+  if (error) throw error; // 서버 에러 메시지를 그대로 노출 (임의 문구로 덮지 않음)
 }
 
 export async function getCurrentUser() {
@@ -83,18 +83,14 @@ export async function signInWithKakao() {
 }
 
 // ── 네이버: Supabase 표준 Provider 목록에 없어서 직접 구현 ────────────
-// Supabase Auth는 세션 서명용 JWT 비밀키를 우리 쪽(SQL/앱)에 노출하지 않기 때문에,
-// "네이버 인가코드 → 액세스 토큰 → 프로필 조회 → 회원가입/로그인" 과정을 Postgres가 아닌
-// Edge Function(naver-auth, supabase/functions/naver-auth)에서 처리한다:
-//   1) 앱: 네이버 로그인 창을 띄워 인가 코드(code)를 받는다
-//   2) 앱: 그 code를 naver-auth 함수로 보낸다 (client_secret은 함수 쪽에만 있음)
-//   3) 함수: 네이버 토큰 교환 + 프로필 조회 + (신규면) 회원가입 후, 매직링크 토큰을 돌려준다
-//   4) 앱: 그 토큰으로 verifyOtp() 를 호출해 실제 Supabase 세션을 발급받는다
+// Supabase는 세션 서명용 JWT 비밀키를 앱/SQL 쪽에 노출하지 않으므로, 세션 발급까지
+// 직접 처리할 수 없다. 그래서 토큰 교환·프로필 조회·회원가입·매직링크 발급은
+// Edge Function(supabase/functions/naver-auth)에 맡기고, 앱은 그 함수가 돌려준
+// token_hash로 verifyOtp() 를 호출해 세션만 받아온다.
 //
-// 네이버 개발자센터의 Callback URL은 http(s)만 허용해서 pansa:// 커스텀 스킴을 직접
-// 등록할 수 없다. 그래서 네이버에는 웹 브릿지 페이지(public/auth-callback.html, Vercel로
-// 배포됨)를 redirect_uri로 등록하고, 그 페이지가 code/state를 그대로 pansa://auth-callback로
-// 다시 리다이렉트해서 WebBrowser가 앱 복귀를 감지하게 한다.
+// 네이버 Callback URL은 http(s)만 허용해 pansa:// 커스텀 스킴을 바로 등록할 수 없다.
+// 그래서 네이버 콜백은 웹 브릿지 페이지(public/auth-callback.html)로 받고, 그 페이지가
+// code/state를 pansa://auth-callback으로 다시 리다이렉트해 앱으로 넘겨준다.
 const NAVER_CLIENT_ID: string =
   (Constants.expoConfig?.extra?.naverClientId as string) ?? '';
 const NAVER_WEB_CALLBACK_URL = 'https://pansa-app-phi.vercel.app/auth-callback.html';

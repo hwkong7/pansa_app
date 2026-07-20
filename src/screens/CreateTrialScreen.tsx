@@ -28,7 +28,7 @@ import { colors, font, radius, spacing } from '@/theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CreateTrial'>;
 
-// 피그마 '3-2 사연작성' (node 141:3990) 컬러 — 이 화면 전용
+// 사연작성 화면 전용 컬러
 const FG = {
   bg: '#F0F5FF',
   border: '#E3E9F5',
@@ -137,7 +137,7 @@ export default function CreateTrialScreen({ navigation }: Props) {
 
       navigation.navigate('TrialPending', { id: trialId });
     } catch (e: any) {
-      // 서버 에러 메시지 그대로 (가이드 3-4)
+      // 서버 에러 메시지 그대로 노출
       Alert.alert('오류', e?.message ?? '재판 생성에 실패했어요');
     } finally {
       setLoading(false);

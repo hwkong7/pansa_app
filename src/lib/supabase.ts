@@ -4,12 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
 /**
- * ⚠️ 가이드 5장 유의사항
+ * ⚠️ 보안 유의사항
  * - 프론트에는 Project URL + anon(public) key 만 넣는다.
  * - service_role key 는 절대 넣지 않는다 (넣는 순간 코인 조작 가능).
  * - anon key 는 공개되어도 되는 키다. 권한 제어(RLS)는 서버에서 걸려 있음.
  *
- * 값은 app.json > expo.extra 에서 주입한다. (백엔드 담당자가 전달하는 값)
+ * 값은 app.json > expo.extra 에서 주입한다.
  */
 const extra = Constants.expoConfig?.extra ?? {};
 
