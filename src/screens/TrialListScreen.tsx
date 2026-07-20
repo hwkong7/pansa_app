@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { listIncomingRequests, listMyTrials, listTrials } from '@/api/trials';
-import { Screen } from '@/components/ui';
+import { Dropdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { TrialCard } from '@/components/TrialCard';
 import { useAuth } from '@/context/AuthContext';
@@ -35,7 +35,6 @@ export default function TrialListScreen({ navigation }: Props) {
   const [category, setCategory] = useState('전체');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'latest' | 'views' | 'deadline'>('latest');
-  const [sortOpen, setSortOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,8 +99,6 @@ export default function TrialListScreen({ navigation }: Props) {
     { key: 'views', label: '조회수순' },
     { key: 'deadline', label: '마감임박순' },
   ];
-  const currentSortLabel = SORTS.find((o) => o.key === sort)?.label ?? '';
-
   return (
     <Screen>
       <View style={styles.header}>
@@ -137,39 +134,7 @@ export default function TrialListScreen({ navigation }: Props) {
             {category} <Text style={styles.countNum}>{filtered.length}</Text>
           </Text>
 
-          <View style={styles.sortRow}>
-            <Pressable onPress={() => setSortOpen((v) => !v)} style={styles.sortTrigger}>
-              <Text style={styles.sortTriggerText}>{currentSortLabel}</Text>
-              <Icon
-                name="chevron-down"
-                size={14}
-                color={colors.textMuted}
-                style={sortOpen ? { transform: [{ rotate: '180deg' }] } : undefined}
-              />
-            </Pressable>
-
-            {sortOpen && (
-              <View style={styles.sortMenu}>
-                {SORTS.map((o) => (
-                  <Pressable
-                    key={o.key}
-                    style={styles.sortMenuItem}
-                    onPress={() => {
-                      setSort(o.key);
-                      setSortOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.sortMenuItemText, sort === o.key && styles.sortMenuItemTextActive]}>
-                      {o.label}
-                    </Text>
-                    <View style={styles.checkSlot}>
-                      {sort === o.key && <Icon name="check" size={14} color={colors.primary} />}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
+          <Dropdown value={sort} options={SORTS.map((o) => ({ key: o.key, label: o.label }))} onChange={setSort} />
         </View>
       </View>
 
@@ -228,45 +193,6 @@ const styles = StyleSheet.create({
   },
   countText: { fontSize: font.small, color: colors.text, fontWeight: '700' },
   countNum: { color: colors.primary, fontWeight: '800' },
-  sortRow: {
-    position: 'relative',
-    zIndex: 10,
-  },
-  sortTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  sortTriggerText: { fontSize: font.small, color: colors.textMuted, fontWeight: '700' },
-  sortMenu: {
-    position: 'absolute',
-    top: '100%',
-    right: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.white,
-    overflow: 'hidden',
-    zIndex: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-  },
-  sortMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.lg,
-    height: 40,
-    paddingHorizontal: spacing.md,
-  },
-  sortMenuItemText: { fontSize: font.small, color: colors.textMuted },
-  sortMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
-  checkSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   catActive: { color: colors.text, fontWeight: '800' },
   list: { padding: spacing.lg, paddingBottom: 120 },
   empty: {

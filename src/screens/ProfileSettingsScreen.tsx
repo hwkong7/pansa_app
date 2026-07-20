@@ -10,12 +10,11 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { signOut } from '@/api/auth';
+import { signOut, updatePassword } from '@/api/auth';
 import { getMyProfile, updateMyNickname, updateMyPhoto } from '@/api/profile';
 import { Button, Card, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
@@ -29,7 +28,10 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [nickname, setNickname] = useState('');
   const [saving, setSaving] = useState(false);
-  const [notif, setNotif] = useState(true);
+  const [pwFormOpen, setPwFormOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [pendingPhotoUri, setPendingPhotoUri] = useState<string | null>(null); // 편집 중 · 확인 전 미리보기
   const [photoSaving, setPhotoSaving] = useState(false);
@@ -159,6 +161,29 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
     }
   };
 
+  const onChangePassword = async () => {
+    if (newPassword.length < 6) {
+      Alert.alert('입력 확인', '비밀번호는 6자 이상이어야 해요.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('입력 확인', '새 비밀번호가 서로 일치하지 않아요.');
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await updatePassword(newPassword);
+      setNewPassword('');
+      setConfirmPassword('');
+      setPwFormOpen(false);
+      Alert.alert('완료', '비밀번호가 변경되었어요.');
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '비밀번호 변경에 실패했어요'); // 서버 메시지 그대로
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
       { text: '취소', style: 'cancel' },
@@ -167,7 +192,7 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
   };
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       <View style={styles.topbar}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
           <Icon name="chevron-right" size={26} color={colors.text} style={styles.back} />
@@ -206,11 +231,60 @@ export default function ProfileSettingsScreen({ navigation }: Props) {
         </Card>
         <Button title="저장" onPress={onSave} loading={saving} style={styles.saveBtn} />
 
-        <Text style={styles.sectionLabel}>설정</Text>
+        <Text style={styles.sectionLabel}>로그인 이메일</Text>
         <Card bg={colors.white} style={styles.menu}>
-          <Text style={styles.menuText}>알림 설정</Text>
-          <Switch value={notif} onValueChange={setNotif} trackColor={{ true: colors.primary }} />
+          <Text style={styles.emailValue}>{user?.email ?? '-'}</Text>
         </Card>
+
+        <Text style={styles.sectionLabel}>비밀번호</Text>
+        {!pwFormOpen ? (
+          <Card bg={colors.white} style={styles.menu} onPress={() => setPwFormOpen(true)}>
+            <Text style={styles.menuText}>비밀번호 변경</Text>
+            <Icon name="chevron-right" size={18} color={colors.textMuted} />
+          </Card>
+        ) : (
+          <>
+            <Card bg={colors.white} style={styles.nicknameCard}>
+              <TextInput
+                style={styles.nicknameInput}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="새 비밀번호 (6자 이상)"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                autoFocus
+              />
+            </Card>
+            <Card bg={colors.white} style={styles.confirmPwCard}>
+              <TextInput
+                style={styles.nicknameInput}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="새 비밀번호 확인"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+              />
+            </Card>
+            <View style={styles.pwBtnRow}>
+              <Button
+                title="취소"
+                variant="outline"
+                style={{ flex: 1 }}
+                onPress={() => {
+                  setPwFormOpen(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+              />
+              <Button
+                title="변경하기"
+                style={{ flex: 1 }}
+                onPress={onChangePassword}
+                loading={pwSaving}
+              />
+            </View>
+          </>
+        )}
 
         <Pressable onPress={onLogout} style={styles.logout}>
           <Text style={styles.logoutText}>로그아웃</Text>
@@ -315,6 +389,8 @@ const styles = StyleSheet.create({
   container: { padding: spacing.lg },
   sectionLabel: { color: colors.textMuted, fontSize: font.small, marginTop: spacing.lg, marginBottom: spacing.sm },
   nicknameCard: { borderWidth: 1, borderColor: colors.border },
+  confirmPwCard: { borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm },
+  pwBtnRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   nicknameInput: { fontSize: font.body, color: colors.text, padding: 0 },
   saveBtn: { marginTop: spacing.md },
   menu: {
@@ -326,6 +402,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   menuText: { fontSize: font.body, color: colors.text, fontWeight: '600' },
+  emailValue: { fontSize: font.body, color: colors.textMuted, fontWeight: '600' },
   logout: { alignItems: 'center', marginTop: spacing.lg },
   logoutText: { color: colors.danger, fontWeight: '700', fontSize: font.body },
 

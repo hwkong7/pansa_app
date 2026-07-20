@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -34,20 +33,37 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   const [trial, setTrial] = useState<Trial | null>(null);
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
 
-  // 댓글 입력 중 키보드가 올라오면 입력창이 가려지지 않게 맨 아래로 스크롤
-  // (TextInput의 onFocus는 키보드 애니메이션이 끝나기 전에 발생해 타이밍이 어긋나므로
-  //  키보드가 실제로 다 올라온 뒤 발생하는 이벤트를 사용한다)
+  // 댓글: 입력창을 ScrollView 밖(키보드 위에 항상 떠 있는 하단 바)으로 빼서
+  // 키보드가 올라와도 입력창이 가려지지 않게 한다.
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [posting, setPosting] = useState(false);
+
+  const loadComments = useCallback(() => {
+    listComments(id).then(setComments).catch(() => {});
+  }, [id]);
+
   useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const sub = Keyboard.addListener(showEvent, () => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-    return () => sub.remove();
-  }, []);
+    loadComments();
+  }, [loadComments]);
+
+  const addCommentNow = async () => {
+    const t = commentText.trim();
+    if (!t || posting) return;
+    setPosting(true);
+    try {
+      await addComment(id, t);
+      setCommentText('');
+      loadComments();
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '댓글 등록에 실패했어요');
+    } finally {
+      setPosting(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -109,14 +125,14 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
   const photos = getTrialPhotos(trial);
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
-          ref={scrollRef}
+          style={{ flex: 1 }}
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
@@ -155,8 +171,29 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           )}
 
           {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
-          <CommentsSection trialId={trial.id} />
+          <CommentsList comments={comments} />
         </ScrollView>
+
+        {/* 댓글 입력창: 스크롤 영역 밖(키보드 바로 위)에 항상 떠 있어 키보드에 가려지지 않는다 */}
+        <View style={styles.commentInputRow}>
+          <TextInput
+            style={styles.commentInput}
+            value={commentText}
+            onChangeText={setCommentText}
+            placeholder="댓글 달기..."
+            placeholderTextColor={colors.textMuted}
+            onSubmitEditing={addCommentNow}
+            returnKeyType="send"
+            editable={!posting}
+          />
+          <Pressable
+            onPress={addCommentNow}
+            style={[styles.commentSend, posting && { opacity: 0.5 }]}
+            disabled={posting}
+          >
+            <Text style={styles.commentSendText}>등록</Text>
+          </Pressable>
+        </View>
 
         <ImageViewerModal
           visible={viewerOpen}
@@ -289,35 +326,8 @@ function ChoiceButton({
   );
 }
 
-// ── 댓글 섹션 (당사자/관전자 구분 없이 로그인 유저 누구나 작성 가능) ──
-function CommentsSection({ trialId }: { trialId: number }) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [text, setText] = useState('');
-  const [posting, setPosting] = useState(false);
-
-  const load = useCallback(() => {
-    listComments(trialId).then(setComments).catch(() => {});
-  }, [trialId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const add = async () => {
-    const t = text.trim();
-    if (!t || posting) return;
-    setPosting(true);
-    try {
-      await addComment(trialId, t);
-      setText('');
-      load();
-    } catch (e: any) {
-      Alert.alert('오류', e?.message ?? '댓글 등록에 실패했어요');
-    } finally {
-      setPosting(false);
-    }
-  };
-
+// ── 댓글 목록 (입력창은 화면 하단에 별도로 떠 있음 — 키보드 회피용) ──
+function CommentsList({ comments }: { comments: Comment[] }) {
   return (
     <View style={styles.commentsWrap}>
       <View style={styles.divider} />
@@ -342,22 +352,6 @@ function CommentsSection({ trialId }: { trialId: number }) {
       {comments.length === 0 && (
         <Text style={styles.commentEmpty}>첫 댓글을 남겨보세요.</Text>
       )}
-
-      <View style={styles.commentInputRow}>
-        <TextInput
-          style={styles.commentInput}
-          value={text}
-          onChangeText={setText}
-          placeholder="댓글 달기..."
-          placeholderTextColor={colors.textMuted}
-          onSubmitEditing={add}
-          returnKeyType="send"
-          editable={!posting}
-        />
-        <Pressable onPress={add} style={[styles.commentSend, posting && { opacity: 0.5 }]} disabled={posting}>
-          <Text style={styles.commentSendText}>등록</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -430,7 +424,14 @@ const styles = StyleSheet.create({
   commentText: { fontSize: font.body, color: colors.text, marginTop: 2, lineHeight: 20 },
   commentEmpty: { color: colors.textMuted, fontSize: font.small, marginBottom: spacing.md },
   commentInputRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   commentInput: {
     flex: 1, height: 44, borderRadius: radius.pill,

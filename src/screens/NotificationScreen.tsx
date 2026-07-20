@@ -49,7 +49,7 @@ export default function NotificationScreen({ navigation }: Props) {
   };
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       <View style={styles.topbar}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
           <Icon name="chevron-right" size={26} color={colors.text} style={styles.back} />

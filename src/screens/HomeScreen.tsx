@@ -104,10 +104,18 @@ export default function HomeScreen({ navigation }: Props) {
             안녕하세요,{'\n'}
             <Text style={styles.name}>{nickname}</Text>님
           </Text>
-          <Pressable onPress={() => navigation.navigate('Notifications')} hitSlop={10}>
-            <Icon name="bell" size={24} color={colors.text} />
-            {unreadCount > 0 && <View style={styles.unreadBadge} />}
-          </Pressable>
+          <View>
+            <Pressable onPress={() => navigation.navigate('Notifications')} hitSlop={10}>
+              <Icon name="bell" size={24} color={colors.text} />
+              {unreadCount > 0 && <View style={styles.unreadBadge} />}
+            </Pressable>
+            {unreadCount > 0 && (
+              <View style={styles.bellTooltip}>
+                <View style={styles.bellTooltipArrow} />
+                <Text style={styles.bellTooltipText}>읽지 않은 알림이 있습니다</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {/* 출석체크: 하루 1회, 누르면 채워지고 저장됨 */}
@@ -233,6 +241,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.lg,
+    zIndex: 20,
+    elevation: 20,
   },
   greeting: { fontSize: font.h2, color: colors.text, lineHeight: 30 },
   name: { fontWeight: '800' },
@@ -244,6 +254,37 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.danger,
+  },
+  bellTooltip: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: colors.text,
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  bellTooltipArrow: {
+    position: 'absolute',
+    top: -5,
+    right: 8,
+    width: 10,
+    height: 10,
+    backgroundColor: colors.text,
+    transform: [{ rotate: '45deg' }],
+  },
+  bellTooltipText: {
+    color: colors.white,
+    fontSize: font.tiny,
+    fontWeight: '700',
+    width: 130,
   },
   attendance: {
     borderWidth: 1,

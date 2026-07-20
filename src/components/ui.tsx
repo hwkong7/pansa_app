@@ -9,19 +9,25 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius, spacing } from '@/theme';
+import { Icon } from './icons';
 
 // ── Screen wrapper ────────────────────────────────────────────────
+// edges: 기본은 상단만. 하단 고정 버튼이 없는 화면(BottomBar 미사용)은
+// edges={['top','bottom']}로 시스템 네비게이션 바(제스처 바/3버튼 바) 영역을 피해야 한다.
+// BottomBar를 쓰는 화면은 BottomBar가 자체적으로 insets.bottom을 더하므로 top만으로 충분.
 export function Screen({
   children,
   style,
   bg = colors.bg,
+  edges = ['top'],
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
   bg?: string;
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
 }) {
   return (
-    <SafeAreaView style={[{ flex: 1, backgroundColor: bg }, style]} edges={['top']}>
+    <SafeAreaView style={[{ flex: 1, backgroundColor: bg }, style]} edges={edges}>
       {children}
     </SafeAreaView>
   );
@@ -130,6 +136,63 @@ export function Card({
   return content;
 }
 
+// ── Dropdown (정렬 선택 등 — 재판소/리워드샵에서 공통으로 쓰는 드롭다운) ──
+export function Dropdown<T extends string>({
+  value,
+  options,
+  onChange,
+  align = 'right',
+}: {
+  value: T;
+  options: { key: T; label: string }[];
+  onChange: (key: T) => void;
+  align?: 'left' | 'right';
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((o) => o.key === value)?.label ?? '';
+
+  return (
+    <View style={styles.dropdownWrap}>
+      <Pressable onPress={() => setOpen((v) => !v)} style={styles.dropdownTrigger}>
+        <Text style={styles.dropdownTriggerText}>{current}</Text>
+        <Icon
+          name="chevron-down"
+          size={14}
+          color={colors.textMuted}
+          style={open ? { transform: [{ rotate: '180deg' }] } : undefined}
+        />
+      </Pressable>
+
+      {open && (
+        <View style={[styles.dropdownMenu, align === 'left' ? { left: 0 } : { right: 0 }]}>
+          {options.map((o) => (
+            <Pressable
+              key={o.key}
+              style={[styles.dropdownMenuItem, value === o.key && styles.dropdownMenuItemActive]}
+              onPress={() => {
+                onChange(o.key);
+                setOpen(false);
+              }}
+            >
+              <Text
+                style={[
+                  styles.dropdownMenuItemText,
+                  value === o.key && styles.dropdownMenuItemTextActive,
+                ]}
+              >
+                {o.label}
+              </Text>
+              <View style={styles.dropdownCheckSlot}>
+                {value === o.key && <Icon name="check" size={14} color={colors.primary} />}
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ── Category badge ────────────────────────────────────────────────
 export function Badge({
   label,
@@ -182,6 +245,46 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     padding: spacing.md,
   },
+  dropdownWrap: { position: 'relative', zIndex: 10 },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  dropdownTriggerText: { fontSize: font.small, color: colors.textMuted, fontWeight: '700' },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    overflow: 'hidden',
+    minWidth: 120,
+    zIndex: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  dropdownMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.lg,
+    height: 40,
+    paddingHorizontal: spacing.md,
+    marginHorizontal: 6,
+    marginVertical: 2,
+    borderRadius: radius.sm,
+  },
+  dropdownMenuItemActive: { backgroundColor: colors.primary + '15' },
+  dropdownMenuItemText: { fontSize: font.small, color: colors.textMuted },
+  dropdownMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
+  dropdownCheckSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   badge: { fontSize: font.small, fontWeight: '700' },
   countdown: {
     fontSize: 34,

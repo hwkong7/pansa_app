@@ -99,6 +99,25 @@ export async function respondToTrial(trialId: number, accept: boolean) {
   if (error) throw error;
 }
 
+// ── 쓰기: 사연 카테고리 수정 (rpc update_trial_category) ────────────
+// 판돈/투표 내용엔 영향 없는 순수 표시용 태그라 상태 제한 없이 원고 본인이면 언제나 가능.
+export async function updateTrialCategory(trialId: number, category: string): Promise<void> {
+  const { error } = await supabase.rpc('update_trial_category', {
+    p_trial_id: trialId,
+    p_category: category,
+  });
+  if (error) throw error;
+}
+
+// ── 쓰기: 사연 삭제 (rpc cancel_trial) ────────────────────────────
+// PENDING(피고 응답 전): 원고 판돈만 환불.
+// OPEN(진행중): 원고/피고 판돈 + 이미 걸린 베팅 전부 환불.
+// SETTLED(정산 완료): 이미 지급이 끝나 삭제 불가(서버에서 에러 반환).
+export async function cancelTrial(trialId: number): Promise<void> {
+  const { error } = await supabase.rpc('cancel_trial', { p_trial_id: trialId });
+  if (error) throw error;
+}
+
 // ── 읽기: 재판 목록 (상태 필터 + 페이지네이션) ──────────────────────
 // page: 0부터 시작. 10개씩 끊어서 로딩(가이드 3-7 성능 가이드).
 export async function listTrials(status?: TrialStatus, page = 0): Promise<Trial[]> {
@@ -187,6 +206,7 @@ export async function listMyTrials(userId: string): Promise<Trial[]> {
     .from('trials')
     .select('*')
     .eq('plaintiff_id', userId)
+    .eq('deleted', false)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as Trial[];

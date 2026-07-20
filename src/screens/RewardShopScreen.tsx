@@ -4,7 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getMyCoin } from '@/api/profile';
 import { listMyRedemptions, listRewards, redeemReward, type Reward, type RewardRedemption } from '@/api/rewards';
-import { Screen } from '@/components/ui';
+import { Dropdown, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
 import { useAuth } from '@/context/AuthContext';
 import type { AppStackParamList } from '@/navigation/types';
@@ -25,7 +25,6 @@ export default function RewardShopScreen({ navigation }: Props) {
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<'high' | 'low'>('high');
-  const [sortOpen, setSortOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -81,7 +80,7 @@ export default function RewardShopScreen({ navigation }: Props) {
     view === 'wish' ? '찜한 상품이 없어요.' : view === 'history' ? '구매내역이 없어요.' : '상품이 없어요.';
 
   return (
-    <Screen>
+    <Screen edges={['top', 'bottom']}>
       {/* 상단바 */}
       <View style={styles.topbar}>
         <Pressable
@@ -136,46 +135,14 @@ export default function RewardShopScreen({ navigation }: Props) {
 
           <View style={styles.sortRow}>
             <Text style={styles.count}>전체 {list.length}</Text>
-
-            <View style={styles.sortWrap}>
-              <Pressable
-                style={styles.sortBtn}
-                onPress={() => setSortOpen((open) => !open)}
-              >
-                <Text style={styles.sortText}>
-                  {sort === 'high' ? '가격 높은순' : '가격 낮은순'}
-                </Text>
-                <Icon name="chevron-down" size={16} color={colors.textMuted} />
-              </Pressable>
-
-              {sortOpen && (
-                <View style={styles.sortMenu}>
-                  <Pressable
-                    style={[styles.sortMenuItem, sort === 'high' && styles.sortMenuItemActive]}
-                    onPress={() => {
-                      setSort('high');
-                      setSortOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.sortMenuText, sort === 'high' && styles.sortMenuTextActive]}>
-                      가격 높은순
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={[styles.sortMenuItem, sort === 'low' && styles.sortMenuItemActive]}
-                    onPress={() => {
-                      setSort('low');
-                      setSortOpen(false);
-                    }}
-                  >
-                    <Text style={[styles.sortMenuText, sort === 'low' && styles.sortMenuTextActive]}>
-                      가격 낮은순
-                    </Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
+            <Dropdown
+              value={sort}
+              options={[
+                { key: 'high', label: '가격 높은순' },
+                { key: 'low', label: '가격 낮은순' },
+              ]}
+              onChange={setSort}
+            />
           </View>
         </>
       )}
@@ -266,11 +233,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     marginTop: spacing.md,
+    zIndex: 10,
+    elevation: 10,
   },
   count: { color: colors.textMuted, fontSize: font.small },
-  sortWrap: { position: 'relative' },
-  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  sortText: { color: colors.textMuted, fontSize: font.small },
   list: { padding: spacing.lg, paddingTop: spacing.md },
   rewardCard: {
     flexDirection: 'row',
@@ -289,25 +255,4 @@ const styles = StyleSheet.create({
   rewardCost: { fontSize: font.body, fontWeight: '800', color: colors.text },
   done: { fontSize: font.small, fontWeight: '700', color: colors.success },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
-  sortMenu: {
-    position: 'absolute',
-    top: 28,
-    right: 0,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    minWidth: 120,
-    zIndex: 10,
-    overflow: 'hidden',
-  },
-  sortMenuItem: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  sortMenuItemActive: {
-    backgroundColor: colors.primary + '10',
-  },
-  sortMenuText: { color: colors.text, fontSize: font.small },
-  sortMenuTextActive: { color: colors.primary, fontWeight: '700' },
 });

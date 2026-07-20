@@ -385,6 +385,7 @@ const styles = StyleSheet.create({
   },
   storyCard: {
     minHeight: 140,
+    marginTop: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
   },
