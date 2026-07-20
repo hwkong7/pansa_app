@@ -126,6 +126,10 @@ export default function LoginScreen({ navigation }: Props) {
           >
             <Text style={styles.signupText}>지금 바로 회원가입 ›</Text>
           </Pressable>
+
+          <Pressable onPress={() => navigation.navigate('Faq')} style={styles.faqLink}>
+            <Text style={styles.faqText}>자주 묻는 질문</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -171,4 +175,6 @@ const styles = StyleSheet.create({
   socialText: { color: colors.text, textAlign: 'center', fontSize: font.small },
   signupLink: { marginTop: spacing.xl, alignItems: 'center' },
   signupText: { color: colors.text, fontWeight: '700', fontSize: font.body },
+  faqLink: { marginTop: spacing.md, alignItems: 'center' },
+  faqText: { color: colors.textMuted, fontSize: font.small, textDecorationLine: 'underline' },
 });

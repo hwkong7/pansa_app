@@ -15,15 +15,19 @@ import {
   View,
 } from 'react-native';
 import { placeBet } from '@/api/bets';
-import { addComment, listComments } from '@/api/comments';
+import { addComment, deleteComment, editComment, listComments } from '@/api/comments';
+import { reportContent } from '@/api/reports';
 import { getTrial, incrementTrialView, subscribeTrial } from '@/api/trials';
 import { BetSheet } from '@/components/BetSheet';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
-import { Screen } from '@/components/ui';
+import { OptionSheet, Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
+import { useAuth } from '@/context/AuthContext';
 import { getTrialPhotos, MIN_VOTES_TO_SETTLE, type Choice, type Comment, type Trial } from '@/lib/types';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
+
+const REPORT_REASONS = ['스팸/광고', '욕설/혐오 표현', '음란물', '허위 사실', '기타'];
 
 type Props = NativeStackScreenProps<AppStackParamList, 'TrialDetail'>;
 
@@ -31,11 +35,24 @@ const POLL_MS = 30_000;
 
 export default function TrialDetailScreen({ navigation, route }: Props) {
   const { id } = route.params;
+  const { user } = useAuth();
   const [trial, setTrial] = useState<Trial | null>(null);
   const [loading, setLoading] = useState(true);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
+
+  // 댓글 ⋯ 메뉴(수정/삭제/신고) + 인라인 수정 상태
+  const [menuComment, setMenuComment] = useState<Comment | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // 신고 사유 선택 시트 — 사연 자체(trial) 또는 특정 댓글에 대해 열림
+  const [reportTarget, setReportTarget] = useState<{ type: 'trial' | 'comment'; id: number } | null>(
+    null
+  );
+  const [trialMenuOpen, setTrialMenuOpen] = useState(false);
 
   // 댓글: 입력창을 ScrollView 밖(키보드 위에 항상 떠 있는 하단 바)으로 빼서 키보드에
   // 가려지지 않게 하되, 평소엔 아이콘만 보이다가 탭했을 때만 입력창이 펼쳐지게 한다
@@ -78,6 +95,62 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
       Alert.alert('오류', e?.message ?? '댓글 등록에 실패했어요');
     } finally {
       setPosting(false);
+    }
+  };
+
+  const startEditComment = (c: Comment) => {
+    setEditingCommentId(c.id);
+    setEditingText(c.text);
+  };
+
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditingText('');
+  };
+
+  const saveEditComment = async () => {
+    if (editingCommentId == null) return;
+    const t = editingText.trim();
+    if (!t) return;
+    setSavingEdit(true);
+    try {
+      await editComment(editingCommentId, t);
+      cancelEditComment();
+      loadComments();
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '댓글 수정에 실패했어요'); // 서버 메시지 그대로
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const confirmDeleteComment = (commentId: number) => {
+    Alert.alert('댓글 삭제', '이 댓글을 삭제할까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteComment(commentId);
+            loadComments();
+          } catch (e: any) {
+            Alert.alert('오류', e?.message ?? '댓글 삭제에 실패했어요'); // 서버 메시지 그대로
+          }
+        },
+      },
+    ]);
+  };
+
+  const doReport = async (reason: string) => {
+    if (!reportTarget) return;
+    try {
+      await reportContent(reportTarget.type, reportTarget.id, reason);
+      Alert.alert('신고 완료', '신고해주셔서 감사합니다. 운영팀이 확인할게요.');
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '신고에 실패했어요'); // 서버 메시지 그대로
+    } finally {
+      setReportTarget(null);
     }
   };
 
@@ -160,6 +233,10 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
               CASE {trial.id}
               {category ? `  ${category}` : ''}
             </Text>
+            <View style={{ flex: 1 }} />
+            <Pressable onPress={() => setTrialMenuOpen(true)} hitSlop={10}>
+              <Icon name="more" size={20} color={colors.textMuted} />
+            </Pressable>
           </View>
 
           <Text style={styles.story}>{trial.story}</Text>
@@ -187,7 +264,17 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           )}
 
           {trial.status === 'OPEN' && <OpenView trial={trial} onBetPlaced={load} />}
-          <CommentsList comments={comments} />
+          <CommentsList
+            comments={comments}
+            myUserId={user?.id}
+            editingCommentId={editingCommentId}
+            editingText={editingText}
+            savingEdit={savingEdit}
+            onChangeEditingText={setEditingText}
+            onSaveEdit={saveEditComment}
+            onCancelEdit={cancelEditComment}
+            onMenuPress={setMenuComment}
+          />
         </ScrollView>
 
         {/* 댓글 입력창: 평소엔 아이콘만 떠 있다가, 탭하면 펼쳐진다(키보드 위에 항상 위치). */}
@@ -228,6 +315,43 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
           images={photos}
           initialIndex={viewerIndex}
           onClose={() => setViewerOpen(false)}
+        />
+
+        <OptionSheet
+          visible={trialMenuOpen}
+          onClose={() => setTrialMenuOpen(false)}
+          options={[
+            {
+              label: '신고하기',
+              onPress: () => setReportTarget({ type: 'trial', id: trial.id }),
+            },
+          ]}
+        />
+
+        <OptionSheet
+          visible={menuComment != null}
+          onClose={() => setMenuComment(null)}
+          options={
+            menuComment == null
+              ? []
+              : menuComment.user_id === user?.id
+              ? [
+                  { label: '수정', onPress: () => startEditComment(menuComment) },
+                  { label: '삭제', destructive: true, onPress: () => confirmDeleteComment(menuComment.id) },
+                ]
+              : [
+                  {
+                    label: '신고하기',
+                    onPress: () => setReportTarget({ type: 'comment', id: menuComment.id }),
+                  },
+                ]
+          }
+        />
+
+        <OptionSheet
+          visible={reportTarget != null}
+          onClose={() => setReportTarget(null)}
+          options={REPORT_REASONS.map((r) => ({ label: r, onPress: () => doReport(r) }))}
         />
       </KeyboardAvoidingView>
     </Screen>
@@ -355,27 +479,75 @@ function ChoiceButton({
 }
 
 // ── 댓글 목록 (입력창은 화면 하단에 별도로 떠 있음 — 키보드 회피용) ──
-function CommentsList({ comments }: { comments: Comment[] }) {
+function CommentsList({
+  comments,
+  myUserId,
+  editingCommentId,
+  editingText,
+  savingEdit,
+  onChangeEditingText,
+  onSaveEdit,
+  onCancelEdit,
+  onMenuPress,
+}: {
+  comments: Comment[];
+  myUserId?: string;
+  editingCommentId: number | null;
+  editingText: string;
+  savingEdit: boolean;
+  onChangeEditingText: (t: string) => void;
+  onSaveEdit: () => void;
+  onCancelEdit: () => void;
+  onMenuPress: (c: Comment) => void;
+}) {
   return (
     <View style={styles.commentsWrap}>
       <View style={styles.divider} />
       <Text style={styles.commentsTitle}>댓글 {comments.length}</Text>
 
-      {comments.map((c) => (
-        <View key={c.id} style={styles.commentRow}>
-          <View style={styles.commentAvatar}>
-            {c.author?.photo_uri ? (
-              <Image source={{ uri: c.author.photo_uri }} style={styles.commentAvatarImg} />
-            ) : (
-              <Icon name="mypage" size={16} color={colors.primary} />
+      {comments.map((c) => {
+        const isEditing = editingCommentId === c.id;
+        return (
+          <View key={c.id} style={styles.commentRow}>
+            <View style={styles.commentAvatar}>
+              {c.author?.photo_uri ? (
+                <Image source={{ uri: c.author.photo_uri }} style={styles.commentAvatarImg} />
+              ) : (
+                <Icon name="mypage" size={16} color={colors.primary} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.commentNick}>{c.author?.nickname ?? '익명의판사'}</Text>
+              {isEditing ? (
+                <View>
+                  <TextInput
+                    style={styles.commentEditInput}
+                    value={editingText}
+                    onChangeText={onChangeEditingText}
+                    multiline
+                    autoFocus
+                  />
+                  <View style={styles.commentEditBtnRow}>
+                    <Pressable onPress={onCancelEdit} disabled={savingEdit}>
+                      <Text style={styles.commentEditCancel}>취소</Text>
+                    </Pressable>
+                    <Pressable onPress={onSaveEdit} disabled={savingEdit}>
+                      <Text style={styles.commentEditSave}>{savingEdit ? '저장 중...' : '저장'}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Text style={styles.commentText}>{c.text}</Text>
+              )}
+            </View>
+            {myUserId && !isEditing && (
+              <Pressable onPress={() => onMenuPress(c)} hitSlop={8}>
+                <Icon name="more" size={16} color={colors.textMuted} />
+              </Pressable>
             )}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.commentNick}>{c.author?.nickname ?? '익명의판사'}</Text>
-            <Text style={styles.commentText}>{c.text}</Text>
-          </View>
-        </View>
-      ))}
+        );
+      })}
 
       {comments.length === 0 && (
         <Text style={styles.commentEmpty}>첫 댓글을 남겨보세요.</Text>
@@ -451,6 +623,21 @@ const styles = StyleSheet.create({
   commentNick: { fontSize: font.small, fontWeight: '700', color: colors.text },
   commentText: { fontSize: font.body, color: colors.text, marginTop: 2, lineHeight: 20 },
   commentEmpty: { color: colors.textMuted, fontSize: font.small, marginBottom: spacing.md },
+  commentEditInput: {
+    marginTop: 4,
+    fontSize: font.body,
+    color: colors.text,
+    lineHeight: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    minHeight: 44,
+    textAlignVertical: 'top',
+  },
+  commentEditBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.md, marginTop: 6 },
+  commentEditCancel: { color: colors.textMuted, fontSize: font.small, fontWeight: '600' },
+  commentEditSave: { color: colors.primary, fontSize: font.small, fontWeight: '700' },
   commentInputRow: {
     flexDirection: 'row',
     alignItems: 'center',

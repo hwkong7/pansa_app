@@ -29,6 +29,18 @@ export async function addComment(trialId: number, text: string): Promise<void> {
   if (error) throw error;
 }
 
+// ── 쓰기: 댓글 수정 (rpc edit_comment) ──────────────────────────────
+export async function editComment(commentId: number, text: string): Promise<void> {
+  const { error } = await supabase.rpc('edit_comment', { p_comment_id: commentId, p_text: text });
+  if (error) throw error;
+}
+
+// ── 쓰기: 댓글 삭제 (rpc delete_comment) ─────────────────────────────
+export async function deleteComment(commentId: number): Promise<void> {
+  const { error } = await supabase.rpc('delete_comment', { p_comment_id: commentId });
+  if (error) throw error;
+}
+
 // ── 읽기: 특정 재판의 댓글 목록 ─────────────────────────────────────
 export async function listComments(trialId: number): Promise<Comment[]> {
   if (DEMO_MODE) {

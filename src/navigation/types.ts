@@ -4,6 +4,7 @@ export type AuthStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Signup: undefined;
+  Faq: undefined;
 };
 
 export type TabParamList = {
@@ -26,4 +27,10 @@ export type AppStackParamList = {
   Activity: { mode: 'myTrials' | 'myComments' | 'myBets' | 'wallet' };
   ProfileSettings: undefined;
   Notifications: undefined;
+  Support: undefined;
+  Faq: undefined;
+  InquiryCreate: undefined;
+  InquiryList: undefined;
+  InquiryDetail: { id: number };
+  Legal: undefined;
 };

@@ -5,6 +5,11 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import ConsentRequestScreen from '@/screens/ConsentRequestScreen';
 import CreateTrialScreen from '@/screens/CreateTrialScreen';
+import FaqScreen from '@/screens/FaqScreen';
+import InquiryCreateScreen from '@/screens/InquiryCreateScreen';
+import InquiryDetailScreen from '@/screens/InquiryDetailScreen';
+import InquiryListScreen from '@/screens/InquiryListScreen';
+import LegalScreen from '@/screens/LegalScreen';
 import LoginScreen from '@/screens/LoginScreen';
 import NotificationScreen from '@/screens/NotificationScreen';
 import OnboardingScreen from '@/screens/OnboardingScreen';
@@ -16,6 +21,7 @@ import {
 import RewardShopScreen from '@/screens/RewardShopScreen';
 import ActivityScreen from '@/screens/ActivityScreen';
 import SignupScreen from '@/screens/SignupScreen';
+import SupportScreen from '@/screens/SupportScreen';
 import TrialDetailScreen from '@/screens/TrialDetailScreen';
 import TrialPendingScreen from '@/screens/TrialPendingScreen';
 import VerdictScreen from '@/screens/VerdictScreen';
@@ -32,6 +38,7 @@ function AuthFlow() {
       <AuthStack.Screen name="Onboarding" component={OnboardingScreen} />
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="Signup" component={SignupScreen} />
+      <AuthStack.Screen name="Faq" component={FaqScreen} />
     </AuthStack.Navigator>
   );
 }
@@ -51,6 +58,12 @@ function AppFlow() {
       <AppStack.Screen name="Activity" component={ActivityScreen} />
       <AppStack.Screen name="ProfileSettings" component={ProfileSettingsScreen} />
       <AppStack.Screen name="Notifications" component={NotificationScreen} />
+      <AppStack.Screen name="Support" component={SupportScreen} />
+      <AppStack.Screen name="Faq" component={FaqScreen} />
+      <AppStack.Screen name="InquiryCreate" component={InquiryCreateScreen} />
+      <AppStack.Screen name="InquiryList" component={InquiryListScreen} />
+      <AppStack.Screen name="InquiryDetail" component={InquiryDetailScreen} />
+      <AppStack.Screen name="Legal" component={LegalScreen} />
     </AppStack.Navigator>
   );
 }

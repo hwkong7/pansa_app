@@ -51,7 +51,8 @@ export type IconName =
   | 'eye'
   | 'eye-off'
   | 'chat'
-  | 'arrow-up';
+  | 'arrow-up'
+  | 'more';
 
 // 방식 B로 전환할 아이콘 이름 (업로드된 Figma SVG 사용)
 const USE_CUSTOM: IconName[] = [
@@ -112,6 +113,7 @@ const A_MAP: Record<IconName, Vec> = {
   'eye-off': { set: 'feather', glyph: 'eye-off' },
   chat: { set: 'feather', glyph: 'message-circle' },
   'arrow-up': { set: 'feather', glyph: 'arrow-up' },
+  more: { set: 'feather', glyph: 'more-horizontal' },
 };
 
 export function Icon({

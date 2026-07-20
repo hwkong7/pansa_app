@@ -2,7 +2,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useCallback, useState } from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { signOut } from '@/api/auth';
 import { listMyBets } from '@/api/bets';
 import { getMyProfile } from '@/api/profile';
@@ -20,9 +20,6 @@ type Props = CompositeScreenProps<
 >;
 
 const MENU = ['내 사연 내역', '내 댓글 내역', '배팅 내역', 'P-COIN 지갑', '리워드 교환'];
-
-// TODO: 실제 고객센터 이메일 주소로 교체
-const SUPPORT_EMAIL = 'support@pansa.app';
 
 export default function MyPageScreen({ navigation }: Props) {
   const { user } = useAuth();
@@ -46,20 +43,6 @@ export default function MyPageScreen({ navigation }: Props) {
     profile?.nickname ?? (user?.user_metadata?.nickname as string) ?? '익명의판사';
   const coin = profile?.coin ?? 0;
   const caseCount = myTrialsCount + myBetsCount;
-
-  const onContactSupport = async () => {
-    const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('[PANSA] 문의하기')}`;
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-        return;
-      }
-    } catch {
-      // ignore, fall through to fallback alert
-    }
-    Alert.alert('고객센터', `메일 앱을 열 수 없어요.\n${SUPPORT_EMAIL} 로 문의해주세요.`);
-  };
 
   const onLogout = () => {
     Alert.alert('로그아웃', '정말 로그아웃할까요?', [
@@ -132,7 +115,7 @@ export default function MyPageScreen({ navigation }: Props) {
           <Text style={styles.menuText}>알림 설정</Text>
           <Switch value={notif} onValueChange={setNotif} trackColor={{ true: colors.primary }} />
         </Card>
-        <Card bg={colors.white} style={styles.menu} onPress={onContactSupport}>
+        <Card bg={colors.white} style={styles.menu} onPress={() => navigation.navigate('Support')}>
           <Text style={styles.menuText}>고객센터</Text>
           <Icon name="chevron-right" size={18} color={colors.textMuted} />
         </Card>

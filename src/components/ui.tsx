@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -190,6 +191,45 @@ export function Dropdown<T extends string>({
   );
 }
 
+// ── OptionSheet (⋯ 메뉴 — 댓글 수정/삭제/신고 등 액션시트) ───────────
+// Alert.alert는 Android에서 버튼이 3개를 넘으면 일부가 안 보이는 제약이 있어,
+// 옵션이 3개를 넘을 수 있는 메뉴(신고 사유 등)는 이 컴포넌트를 쓴다.
+export function OptionSheet({
+  visible,
+  onClose,
+  options,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  options: { label: string; onPress: () => void; destructive?: boolean }[];
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
+        <View style={styles.sheetBox}>
+          {options.map((o, i) => (
+            <Pressable
+              key={o.label}
+              style={[styles.sheetOption, i < options.length - 1 && styles.sheetOptionBorder]}
+              onPress={() => {
+                onClose();
+                o.onPress();
+              }}
+            >
+              <Text style={[styles.sheetOptionText, o.destructive && { color: colors.danger }]}>
+                {o.label}
+              </Text>
+            </Pressable>
+          ))}
+          <Pressable style={styles.sheetCancel} onPress={onClose}>
+            <Text style={styles.sheetCancelText}>취소</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ── Category badge ────────────────────────────────────────────────
 export function Badge({
   label,
@@ -275,6 +315,30 @@ const styles = StyleSheet.create({
   dropdownMenuItemActive: { backgroundColor: '#E8F2FF' },
   dropdownMenuItemText: { fontSize: font.small, color: colors.text },
   dropdownMenuItemTextActive: { color: colors.primary, fontWeight: '800' },
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(21,27,46,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetBox: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingBottom: spacing.lg,
+    overflow: 'hidden',
+  },
+  sheetOption: { paddingVertical: spacing.md, alignItems: 'center' },
+  sheetOptionBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  sheetOptionText: { fontSize: font.body, color: colors.text, fontWeight: '600' },
+  sheetCancel: {
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    backgroundColor: colors.cardBg,
+    borderRadius: radius.md,
+  },
+  sheetCancelText: { fontSize: font.body, color: colors.textMuted, fontWeight: '700' },
   badge: { fontSize: font.small, fontWeight: '700' },
   countdown: {
     fontSize: 34,
