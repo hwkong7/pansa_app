@@ -90,8 +90,14 @@ export async function signInWithKakao() {
 //   2) 앱: 그 code를 naver-auth 함수로 보낸다 (client_secret은 함수 쪽에만 있음)
 //   3) 함수: 네이버 토큰 교환 + 프로필 조회 + (신규면) 회원가입 후, 매직링크 토큰을 돌려준다
 //   4) 앱: 그 토큰으로 verifyOtp() 를 호출해 실제 Supabase 세션을 발급받는다
+//
+// 네이버 개발자센터의 Callback URL은 http(s)만 허용해서 pansa:// 커스텀 스킴을 직접
+// 등록할 수 없다. 그래서 네이버에는 웹 브릿지 페이지(public/auth-callback.html, Vercel로
+// 배포됨)를 redirect_uri로 등록하고, 그 페이지가 code/state를 그대로 pansa://auth-callback로
+// 다시 리다이렉트해서 WebBrowser가 앱 복귀를 감지하게 한다.
 const NAVER_CLIENT_ID: string =
   (Constants.expoConfig?.extra?.naverClientId as string) ?? '';
+const NAVER_WEB_CALLBACK_URL = 'https://pansa-app-phi.vercel.app/auth-callback.html';
 
 export async function signInWithNaver() {
   if (!NAVER_CLIENT_ID) throw new Error('네이버 로그인 설정이 없어요');
@@ -102,7 +108,7 @@ export async function signInWithNaver() {
   const authorizeUrl = new URL('https://nid.naver.com/oauth2.0/authorize');
   authorizeUrl.searchParams.set('response_type', 'code');
   authorizeUrl.searchParams.set('client_id', NAVER_CLIENT_ID);
-  authorizeUrl.searchParams.set('redirect_uri', REDIRECT_URL);
+  authorizeUrl.searchParams.set('redirect_uri', NAVER_WEB_CALLBACK_URL);
   authorizeUrl.searchParams.set('state', state);
 
   const result = await WebBrowser.openAuthSessionAsync(authorizeUrl.toString(), REDIRECT_URL);
