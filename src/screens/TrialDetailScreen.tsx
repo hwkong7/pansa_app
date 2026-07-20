@@ -83,6 +83,11 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
     setTimeout(() => commentInputRef.current?.focus(), 0);
   };
 
+  const closeCommentBar = () => {
+    Keyboard.dismiss();
+    setCommentBarOpen(false);
+  };
+
   const addCommentNow = async () => {
     const t = commentText.trim();
     if (!t || posting) return;
@@ -234,9 +239,11 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
               {category ? `  ${category}` : ''}
             </Text>
             <View style={{ flex: 1 }} />
-            <Pressable onPress={() => setTrialMenuOpen(true)} hitSlop={10}>
-              <Icon name="more" size={20} color={colors.textMuted} />
-            </Pressable>
+            {trial.plaintiff_id !== user?.id && (
+              <Pressable onPress={() => setTrialMenuOpen(true)} hitSlop={10}>
+                <Icon name="more" size={20} color={colors.textMuted} />
+              </Pressable>
+            )}
           </View>
 
           <Text style={styles.story}>{trial.story}</Text>
@@ -280,9 +287,9 @@ export default function TrialDetailScreen({ navigation, route }: Props) {
         {/* 댓글 입력창: 평소엔 아이콘만 떠 있다가, 탭하면 펼쳐진다(키보드 위에 항상 위치). */}
         {commentBarOpen ? (
           <View style={styles.commentInputRow}>
-            <View style={styles.commentBarIcon}>
-              <Icon name="chat" size={16} color={colors.white} />
-            </View>
+            <Pressable onPress={closeCommentBar} style={styles.commentBarIcon}>
+              <Icon name="close" size={16} color={colors.white} />
+            </Pressable>
             <TextInput
               ref={commentInputRef}
               style={styles.commentInput}
