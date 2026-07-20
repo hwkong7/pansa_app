@@ -68,6 +68,7 @@ export interface Profile {
   photo_uri?: string | null; // 프로필 사진
   checkin_streak?: number | null; // 출석체크 연속일수
   last_checkin_at?: string | null; // 마지막 출석체크 날짜 (YYYY-MM-DD)
+  naver_id?: string | null; // 네이버 로그인 연동 시 매핑용
 }
 
 // 댓글 (재판 상세화면 + 마이페이지 '내 댓글 내역')
