@@ -8,7 +8,6 @@ import {
   demoSearchDefendant,
   demoState,
 } from '@/lib/demo';
-import { getSampleTrial, isSampleTrialId, SAMPLE_TRIALS } from '@/lib/sampleTrials';
 import type { Trial, TrialStatus } from '@/lib/types';
 import { uploadImage } from '@/lib/upload';
 
@@ -117,12 +116,7 @@ export async function listTrials(status?: TrialStatus, page = 0): Promise<Trial[
   if (status) query = query.eq('status', status);
   const { data, error } = await query;
   if (error) throw error;
-  const real = (data ?? []) as Trial[];
-  // 실제 DB가 아직 비어있어도 피드가 허전해 보이지 않도록, 1페이지에 한해 하드코딩 샘플을
-  // 곁들여 보여준다(가이드용 고정 콘텐츠 — src/lib/sampleTrials.ts 참고).
-  if (page > 0) return real;
-  const samples = SAMPLE_TRIALS.filter((t) => !status || t.status === status);
-  return [...real, ...samples];
+  return (data ?? []) as Trial[];
 }
 
 // ── 읽기: 내가 피고로 지정된 PENDING 재판 (홈 '받은 동의요청' 위젯) ──
@@ -140,7 +134,6 @@ export async function listIncomingRequests(userId: string): Promise<Trial[]> {
 
 // ── 쓰기: 조회수 +1 (상세화면 진입 시, rpc increment_trial_view) ──────
 export async function incrementTrialView(id: number): Promise<void> {
-  if (isSampleTrialId(id)) return; // 샘플은 조회수 갱신 안 함
   if (DEMO_MODE) {
     demoIncrementView(id);
     return;
@@ -151,11 +144,6 @@ export async function incrementTrialView(id: number): Promise<void> {
 
 // ── 읽기: 재판 단건 ───────────────────────────────────────────────
 export async function getTrial(id: number): Promise<Trial> {
-  if (isSampleTrialId(id)) {
-    const t = getSampleTrial(id);
-    if (!t) throw new Error('재판을 찾을 수 없어요');
-    return { ...t };
-  }
   if (DEMO_MODE) {
     const t = demoState.trials.find((x) => x.id === id);
     if (!t) throw new Error('재판을 찾을 수 없어요');
@@ -175,7 +163,6 @@ export function subscribeTrial(
   id: number,
   onChange: (trial: Trial) => void
 ): () => void {
-  if (isSampleTrialId(id)) return () => {}; // 샘플: 실시간 구독 없음
   if (DEMO_MODE) return () => {}; // 데모: 구독 없음
   const channel = supabase
     .channel(`trial-${id}`)

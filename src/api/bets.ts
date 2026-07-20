@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { DEMO_MODE, demoPlaceBet } from '@/lib/demo';
 import { getMyLedger } from '@/api/profile';
-import { isSampleTrialId } from '@/lib/sampleTrials';
 import { BET_MAX, BET_MIN, type Choice } from '@/lib/types';
 
 /**
@@ -21,9 +20,6 @@ export async function placeBet(
   choice: Choice,
   amount: number
 ) {
-  if (isSampleTrialId(trialId)) {
-    throw new Error('샘플 사연이라 베팅할 수 없어요');
-  }
   if (DEMO_MODE) {
     // 데모: 상한 검증 없이 디자인대로 처리
     demoPlaceBet(trialId, choice, amount);

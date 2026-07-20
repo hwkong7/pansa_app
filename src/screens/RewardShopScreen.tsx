@@ -1,28 +1,16 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getMyCoin } from '@/api/profile';
+import { listMyRedemptions, listRewards, redeemReward, type Reward, type RewardRedemption } from '@/api/rewards';
 import { Screen } from '@/components/ui';
 import { Icon } from '@/components/icons';
-import { DEMO_MODE, demoState } from '@/lib/demo';
 import { useAuth } from '@/context/AuthContext';
 import type { AppStackParamList } from '@/navigation/types';
 import { colors, font, radius, spacing } from '@/theme';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RewardShop'>;
-
-type Reward = { id: number; name: string; brand: string; cost: number; cat: string; color: string };
-
-const REWARDS: Reward[] = [
-  { id: 1, name: '배달의 민족 1만원권', brand: '배달의민족', cost: 10000, cat: '상품권', color: '#2AC1BC' },
-  { id: 2, name: '아메리카노 (ICED)', brand: '빽다방', cost: 1500, cat: '카페', color: '#FFCD00' },
-  { id: 3, name: '아이스 카페 아메리카노 T', brand: '스타벅스', cost: 4500, cat: '카페', color: '#006241' },
-  { id: 4, name: '아메리카노 (ICED)', brand: '컴포즈커피', cost: 1500, cat: '카페', color: '#5B2E90' },
-  { id: 5, name: '편의점 5천원권', brand: '세븐일레븐', cost: 5000, cat: '편의점', color: '#F37021' },
-  { id: 6, name: '아메리카노 (ICED)', brand: '메가커피', cost: 1500, cat: '카페', color: '#2B2B6B' },
-  { id: 7, name: '카페 모카 (ICED)', brand: '메가커피', cost: 2500, cat: '카페', color: '#2B2B6B' },
-];
 
 const TABS = ['전체', '카페', '편의점', '상품권'];
 type View3 = 'shop' | 'wish' | 'history';
@@ -33,15 +21,28 @@ export default function RewardShopScreen({ navigation }: Props) {
   const [tab, setTab] = useState('전체');
   const [view, setView] = useState<View3>('shop');
   const [wishlist, setWishlist] = useState<number[]>([]);
-  const [purchases, setPurchases] = useState<number[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
+  const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<'high' | 'low'>('high');
   const [sortOpen, setSortOpen] = useState(false);
 
-  const refreshCoin = useCallback(() => {
-    if (user) getMyCoin(user.id).then(setCoin).catch(() => {});
+  const refresh = useCallback(async () => {
+    try {
+      const [r] = await Promise.all([
+        listRewards(),
+        user ? getMyCoin(user.id).then(setCoin) : Promise.resolve(),
+        user ? listMyRedemptions(user.id).then(setRedemptions) : Promise.resolve(),
+      ]);
+      setRewards(r);
+    } catch (e: any) {
+      Alert.alert('오류', e?.message ?? '리워드 목록을 불러오지 못했어요');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
-  useFocusEffect(useCallback(() => { refreshCoin(); }, [refreshCoin]));
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const toggleWish = (id: number) =>
     setWishlist((w) => (w.includes(id) ? w.filter((x) => x !== id) : [...w, id]));
@@ -55,22 +56,25 @@ export default function RewardShopScreen({ navigation }: Props) {
       { text: '취소', style: 'cancel' },
       {
         text: '교환',
-        onPress: () => {
-          if (DEMO_MODE) demoState.coin = Math.max(0, demoState.coin - r.cost);
-          setPurchases((p) => [...p, r.id]);
-          refreshCoin();
-          Alert.alert('교환 완료', '구매내역에서 확인할 수 있어요.');
+        onPress: async () => {
+          try {
+            await redeemReward(r.id);
+            await refresh();
+            Alert.alert('교환 완료', '구매내역에서 확인할 수 있어요.');
+          } catch (e: any) {
+            Alert.alert('오류', e?.message ?? '교환에 실패했어요'); // 서버 메시지 그대로
+          }
         },
       },
     ]);
   };
 
   const list = useMemo(() => {
-    if (view === 'wish') return REWARDS.filter((r) => wishlist.includes(r.id));
-    if (view === 'history') return purchases.map((id) => REWARDS.find((r) => r.id === id)!).filter(Boolean);
-    const base = tab === '전체' ? REWARDS : REWARDS.filter((r) => r.cat === tab);
+    if (view === 'wish') return rewards.filter((r) => wishlist.includes(r.id));
+    if (view === 'history') return redemptions.map((rd) => rd.reward);
+    const base = tab === '전체' ? rewards : rewards.filter((r) => r.category === tab);
     return [...base].sort((a, b) => (sort === 'high' ? b.cost - a.cost : a.cost - b.cost));
-  }, [view, tab, wishlist, purchases, sort]);
+  }, [view, tab, wishlist, rewards, redemptions, sort]);
 
   const title = view === 'wish' ? '찜한 상품' : view === 'history' ? '구매내역' : '리워드샵';
   const emptyText =
@@ -113,7 +117,7 @@ export default function RewardShopScreen({ navigation }: Props) {
             onPress={() => setView(view === 'history' ? 'shop' : 'history')}
           >
             <Text style={[styles.balanceBtnText, view === 'history' && styles.balanceBtnTextActive]}>
-              구매내역 {purchases.length > 0 ? purchases.length : ''}
+              구매내역 {redemptions.length > 0 ? redemptions.length : ''}
             </Text>
           </Pressable>
         </View>
@@ -207,7 +211,13 @@ export default function RewardShopScreen({ navigation }: Props) {
             </Pressable>
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>{emptyText}</Text>}
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+          ) : (
+            <Text style={styles.empty}>{emptyText}</Text>
+          )
+        }
       />
     </Screen>
   );
