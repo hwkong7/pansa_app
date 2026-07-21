@@ -97,14 +97,19 @@ export default function LegalScreen({ navigation }: Props) {
         <View style={{ width: 26 }} />
       </View>
 
-      <View style={styles.tabRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabRow}
+        contentContainerStyle={styles.tabRowContent}
+      >
         {TABS.map((t) => (
           <Pressable key={t.key} onPress={() => setTab(t.key)} style={styles.tabItem}>
             <Text style={[styles.tabText, tab === t.key && styles.tabTextActive]}>{t.key}</Text>
             {tab === t.key && <View style={styles.tabUnderline} />}
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.body}>{active.body}</Text>
@@ -124,9 +129,12 @@ const styles = StyleSheet.create({
   back: { transform: [{ rotate: '180deg' }] },
   topTitle: { fontSize: font.h3, fontWeight: '800', color: colors.text },
   tabRow: {
-    flexDirection: 'row',
+    flexGrow: 0,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  tabRowContent: {
+    flexDirection: 'row',
     paddingHorizontal: spacing.lg,
   },
   tabItem: { paddingVertical: spacing.sm, marginRight: spacing.lg },
